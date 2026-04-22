@@ -1,6 +1,6 @@
 # EcoTroc 🌱
 
-> Plateforme sobre de don et de troc d'objets entre étudiants EFREI Paris.
+> Plateforme sobre de don et de troc d'objets entre étudiants de l'EFREI.
 
 **Mini-Projet Numérique Durable — TI616 — EFREI Paris 2025-2026**
 
@@ -109,26 +109,6 @@ ecotroc/
 ```
 
 ---
-
-## Conventions de commit
-
-```
-feat: nouvelle fonctionnalité
-fix: correction de bug
-perf: amélioration de performance
-style: changement visuel ou CSS
-refactor: restructuration du code sans changement fonctionnel
-docs: documentation
-chore: maintenance (deps, config)
-```
-
-Exemples :
-```
-feat: ajout du CRUD annonces avec pagination
-fix: correction contraste couleur --text-hint (WCAG AA)
-perf: compression WebP des images uploadées
-refactor: séparation routes auth/users/annonces
-```
 
 ---
 
