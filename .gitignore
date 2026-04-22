@@ -8,7 +8,8 @@ node_modules/
 database.db
 
 # Fichiers uploadés par les utilisateurs (binaires, non versionnés)
-public/uploads/
+public/uploads/*
+!public/uploads/.gitkeep
 
 # Logs
 *.log
