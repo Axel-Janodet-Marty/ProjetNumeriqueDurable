@@ -2,7 +2,7 @@
 
 > Plateforme sobre de don et de troc d'objets entre étudiants de l'EFREI.
 
-**Mini-Projet Numérique Durable — TI616 — EFREI Paris 2025-2026**
+**Mini-Projet Numérique Durable**
 
 ---
 
@@ -10,7 +10,7 @@
 
 EcoTroc est une application web légère permettant aux étudiants de l'EFREI de donner ou d'échanger des objets (livres, électronique, mobilier, vêtements…) sans intermédiaire. L'accent est mis sur la **sobriété numérique** : aucune dépendance front-end externe, poids de page < 200 Ko, < 15 requêtes HTTP par page.
 
-🌐 **URL déployée :** _(à compléter après déploiement)_
+🌐 **URL déployée :** https://projetnumeriquedurable-1.onrender.com/index.html
 
 ---
 
