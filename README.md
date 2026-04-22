@@ -18,7 +18,7 @@ EcoTroc est une application web légère permettant aux étudiants de l'EFREI de
 
 | Membre | Rôle |
 |--------|------|
-| _(Prénom Nom)_ | Développeur Full-stack / Chef de projet |
+| Axel Janodet-Marty | Développeur Full-stack / Chef de projet |
 | _(Prénom Nom)_ | Développeur Back-end / Base de données |
 | _(Prénom Nom)_ | Développeur Front-end / Design |
 
@@ -50,8 +50,8 @@ EcoTroc est une application web légère permettant aux étudiants de l'EFREI de
 
 ```bash
 # 1. Cloner le dépôt
-git clone https://github.com/VOTRE_USERNAME/VOTRE_REPO.git
-cd ecotroc
+git clone https://github.com/Axel-Janodet-Marty/ProjetNumeriqueDurable.git
+cd ProjetNumeriqueDurable
 
 # 2. Installer les dépendances
 npm install
@@ -101,7 +101,11 @@ ecotroc/
 │   ├── favicon.svg        # Favicon SVG ~200 octets
 │   └── robots.txt
 │
-└── docs/                  # Documentation et captures Lighthouse/EcoIndex
+└── docs/                  # Documentation
+    ├── uml-cas-utilisation.puml
+    ├── uml-classes.puml
+    ├── uml-sequence.puml
+    └── tests-fonctionnels.md
 ```
 
 ---

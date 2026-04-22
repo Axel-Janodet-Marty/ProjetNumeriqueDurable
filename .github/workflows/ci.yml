@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "feat/**", "fix/**", "chore/**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Initialise base de données
+        env:
+          SESSION_SECRET: ci-secret-placeholder
+        run: npm run init-db
+
+      - name: Vérifier démarrage serveur
+        env:
+          SESSION_SECRET: ci-secret-placeholder
+          PORT: 3001
+        run: |
+          node server.js &
+          SERVER_PID=$!
+          sleep 3
+          curl -sf http://localhost:3001/ > /dev/null && echo "✅ Serveur répond"
+          curl -sf http://localhost:3001/robots.txt > /dev/null && echo "✅ robots.txt OK"
+          curl -sf http://localhost:3001/favicon.svg > /dev/null && echo "✅ favicon.svg OK"
+          kill $SERVER_PID
+
+      - name: Vérifier en-têtes sécurité
+        env:
+          SESSION_SECRET: ci-secret-placeholder
+          PORT: 3001
+        run: |
+          node server.js &
+          SERVER_PID=$!
+          sleep 3
+          HEADERS=$(curl -sI http://localhost:3001/)
+          echo "$HEADERS" | grep -i "X-Content-Type-Options" && echo "✅ X-Content-Type-Options présent"
+          echo "$HEADERS" | grep -i "X-Frame-Options" && echo "✅ X-Frame-Options présent"
+          echo "$HEADERS" | grep -i "Referrer-Policy" && echo "✅ Referrer-Policy présent"
+          kill $SERVER_PID
