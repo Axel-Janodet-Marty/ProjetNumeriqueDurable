@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <meta name="description" content="Gérez votre profil EcoTroc, vos annonces publiées et vos informations personnelles.">
+  <title>Mon profil — EcoTroc</title>
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    .profil-wrap{max-width:680px;margin:32px auto;padding:0 20px}
+    .mes-annonces{margin-top:32px}
+    .annonce-ligne{display:flex;align-items:center;justify-content:space-between;
+      gap:10px;padding:12px 16px;background:var(--blanc);
+      border:1px solid var(--bordure);border-radius:var(--radius);margin-bottom:8px}
+    .annonce-ligne h4{font-size:.93rem;font-weight:600;margin-bottom:2px}
+    .annonce-ligne p{font-size:.8rem;color:var(--texte-doux)}
+    .annonce-actions{display:flex;gap:6px;flex-shrink:0}
+    .statut-badge{font-size:.73rem;font-weight:600;padding:2px 9px;border-radius:12px}
+    .statut-disponible{background:var(--vert-clair);color:var(--vert-fonce)}
+    .statut-donne{background:#f0f0f0;color:#777}
+    .zone-danger{margin-top:28px;padding:18px;border:1.5px solid #f5c6c2;
+      border-radius:var(--radius);background:#fdf6f5}
+    .zone-danger h3{color:var(--erreur);font-size:.95rem;margin-bottom:8px}
+    .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);
+      z-index:200;align-items:center;justify-content:center}
+    .modal-overlay.visible{display:flex}
+    .modal{background:var(--blanc);border-radius:13px;padding:28px 26px;max-width:380px;width:90%;
+      border:1px solid var(--bordure);box-shadow:0 8px 32px rgba(0,0,0,.18)}
+    .modal h3{font-size:1.1rem;font-weight:600;margin-bottom:10px;color:var(--vert-fonce)}
+    .modal p{font-size:.9rem;color:var(--texte-doux);margin-bottom:20px}
+    .modal-actions{display:flex;gap:8px;justify-content:flex-end}
+  </style>
+</head>
+<body>
+<header class="site-header">
+  <div class="container header-inner">
+    <a href="/index.html" class="logo"><span class="logo-icon">♻</span>EcoTroc</a>
+    <nav><ul class="nav-links">
+      <li><a href="/index.html">Accueil</a></li>
+      <li id="nav-compte" style="display:none"><a href="/login.html">Connexion</a></li>
+      <li id="nav-creer" style="display:none"><a href="/create-annonce.html">+ Donner</a></li>
+      <li id="nav-profil" style="display:none"><a href="/profile.html" class="actif">Mon profil</a></li>
+      <li id="nav-admin" style="display:none"><a href="/admin.html">Admin</a></li>
+      <li id="nav-deconnexion" style="display:none"><a href="#" id="btn-deconnexion">Déconnexion</a></li>
+    </ul></nav>
+  </div>
+</header>
+
+<div class="profil-wrap">
+  <h2 class="section-titre">Mon profil</h2>
+
+  <div class="form-card" style="max-width:100%">
+    <div class="alerte alerte-erreur" id="msg-erreur" role="alert"></div>
+    <div class="alerte alerte-succes" id="msg-succes" role="status"></div>
+    <div class="form-groupe">
+      <label for="nom">Nom complet</label>
+      <input type="text" id="nom" required>
+    </div>
+    <div class="form-groupe">
+      <label for="email">E-mail</label>
+      <input type="email" id="email" required>
+    </div>
+    <button class="btn btn-primaire" id="btn-save">Enregistrer les modifications</button>
+  </div>
+
+  <!-- Mes annonces -->
+  <div class="mes-annonces">
+    <h2 class="section-titre">Mes annonces</h2>
+    <div id="liste-annonces"><p class="vide">Chargement…</p></div>
+  </div>
+
+  <!-- Zone danger -->
+  <div class="zone-danger">
+    <h3>⚠ Supprimer mon compte</h3>
+    <p style="font-size:.87rem;color:#7a3a3a">Cette action est irréversible. Toutes vos annonces seront supprimées (RGPD — droit à l'oubli).</p>
+    <button class="btn btn-danger btn-sm" id="btn-delete-account">Supprimer mon compte</button>
+  </div>
+</div>
+
+<!-- Modal confirmation suppression annonce -->
+<div class="modal-overlay" id="modal-annonce">
+  <div class="modal">
+    <h3>Supprimer cette annonce ?</h3>
+    <p>Cette action est définitive.</p>
+    <div class="modal-actions">
+      <button class="btn btn-outline btn-sm" onclick="fermerModal('modal-annonce')">Annuler</button>
+      <button class="btn btn-danger btn-sm" id="btn-confirm-delete-annonce">Supprimer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal confirmation suppression compte -->
+<div class="modal-overlay" id="modal-compte">
+  <div class="modal">
+    <h3>Supprimer votre compte ?</h3>
+    <p>Toutes vos données et annonces seront supprimées définitivement (RGPD).</p>
+    <div class="modal-actions">
+      <button class="btn btn-outline btn-sm" onclick="fermerModal('modal-compte')">Annuler</button>
+      <button class="btn btn-danger btn-sm" id="btn-confirm-delete-compte">Confirmer</button>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div class="container footer-inner">
+    <span>© 2025 EcoTroc Étudiant — EFREI Paris</span>
+    <span class="badge-green">🌱 Vos données protégées — RGPD</span>
+  </div>
+</footer>
+
+<script src="/script.js" defer></script>
+<script>
+  let userId = null;
+  let annonceCibleId = null;
+
+  function fermerModal(id) { document.getElementById(id).classList.remove('visible'); }
+  function ouvrirModal(id) { document.getElementById(id).classList.add('visible'); }
+
+  /* Chargement profil */
+  async function chargerProfil() {
+    try {
+      const res  = await fetch('/api/auth/me');
+      const data = await res.json();
+      if (!data.connecte) { window.location.href = '/login.html'; return; }
+      userId = data.id;
+      document.getElementById('nom').value   = data.nom;
+      document.getElementById('email').value = data.email;
+    } catch { window.location.href = '/login.html'; }
+  }
+
+  /* Chargement annonces */
+  async function chargerMesAnnonces() {
+    try {
+      const res  = await fetch('/api/annonces/mes');
+      const data = await res.json();
+      const c    = document.getElementById('liste-annonces');
+      if (!data.annonces.length) {
+        c.innerHTML = '<p class="vide">Vous n\'avez pas encore d\'annonce.</p>'; return;
+      }
+      c.innerHTML = data.annonces.map(a => `
+        <div class="annonce-ligne" id="al-${a.id}">
+          <div>
+            <h4>${escapeHtml(a.titre)}</h4>
+            <p>${escapeHtml(a.categorie)} · ${escapeHtml(a.etat)}</p>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <span class="statut-badge statut-${a.statut === 'disponible' ? 'disponible' : 'donne'}">
+              ${a.statut === 'disponible' ? 'Disponible' : 'Donné'}
+            </span>
+            <div class="annonce-actions">
+              ${a.statut === 'disponible'
+              ? `<button class="btn btn-outline btn-sm" onclick="marquerDonne(${a.id})">✓ Donné</button>`
+              : ''}
+              <a href="/edit-annonce.html?id=${a.id}" class="btn btn-outline btn-sm">Modifier</a><button class="btn btn-danger btn-sm" onclick="demanderSupprAnnonce(${a.id})">Suppr.</button>
+            </div>
+          </div>
+        </div>`).join('');
+    } catch { document.getElementById('liste-annonces').innerHTML = '<p class="vide">Erreur de chargement.</p>'; }
+  }
+
+  /* Modifier profil */
+  document.getElementById('btn-save').addEventListener('click', async () => {
+    const nom   = document.getElementById('nom').value.trim();
+    const email = document.getElementById('email').value.trim();
+    const msgErr = document.getElementById('msg-erreur');
+    const msgOk  = document.getElementById('msg-succes');
+    msgErr.classList.remove('visible'); msgOk.classList.remove('visible');
+    if (!nom || !email) { msgErr.textContent = 'Nom et e-mail requis.'; return msgErr.classList.add('visible'); }
+    try {
+      const res  = await fetch(`/api/users/${userId}`, {
+        method: 'PUT', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ nom, email })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+      msgOk.textContent = 'Profil mis à jour.'; msgOk.classList.add('visible');
+    } catch (err) { msgErr.textContent = err.message; msgErr.classList.add('visible'); }
+  });
+
+  /* Marquer comme donné */
+  async function marquerDonne(id) {
+    const ligne = document.getElementById(`al-${id}`);
+    const h4 = ligne.querySelector('h4').textContent;
+    const p  = ligne.querySelector('p').textContent.split(' · ');
+    await fetch(`/api/annonces/${id}`, {
+      method: 'PUT', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ titre: h4, categorie: p[0], etat: p[1], statut: 'donne' })
+    });
+    chargerMesAnnonces();
+  }
+
+  /* Suppression annonce */
+  function demanderSupprAnnonce(id) {
+    annonceCibleId = id;
+    ouvrirModal('modal-annonce');
+  }
+  document.getElementById('btn-confirm-delete-annonce').addEventListener('click', async () => {
+    await fetch(`/api/annonces/${annonceCibleId}`, { method: 'DELETE' });
+    fermerModal('modal-annonce');
+    chargerMesAnnonces();
+  });
+
+  /* Suppression compte */
+  document.getElementById('btn-delete-account').addEventListener('click', () => ouvrirModal('modal-compte'));
+  document.getElementById('btn-confirm-delete-compte').addEventListener('click', async () => {
+    const res = await fetch(`/api/users/${userId}`, { method: 'DELETE' });
+    if (res.ok) window.location.href = '/index.html';
+  });
+
+  chargerProfil();
+  chargerMesAnnonces();
+</script>
+</body>
+</html>

@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <meta name="description" content="Modifiez votre annonce EcoTroc — titre, catégorie, état ou statut de l'objet.">
+  <title>Modifier l'annonce — EcoTroc</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="site-header">
+  <div class="container header-inner">
+    <a href="/index.html" class="logo"><span class="logo-icon">♻</span>EcoTroc</a>
+    <nav><ul class="nav-links">
+      <li><a href="/index.html">Accueil</a></li>
+      <li id="nav-compte" style="display:none"><a href="/login.html">Connexion</a></li>
+      <li id="nav-creer" style="display:none"><a href="/create-annonce.html">+ Donner</a></li>
+      <li id="nav-profil" style="display:none"><a href="/profile.html">Mon profil</a></li>
+      <li id="nav-admin" style="display:none"><a href="/admin.html">Admin</a></li>
+      <li id="nav-deconnexion" style="display:none"><a href="#" id="btn-deconnexion">Déconnexion</a></li>
+    </ul></nav>
+  </div>
+</header>
+
+<main class="page-form">
+  <div class="form-card">
+    <h1>Modifier l'annonce</h1>
+    <p class="sous-titre">Mettez à jour les informations de votre objet.</p>
+    <div class="alerte alerte-erreur" id="msg-erreur" role="alert"></div>
+    <div class="alerte alerte-succes" id="msg-succes" role="status"></div>
+
+    <div class="form-groupe">
+      <label for="titre">Titre de l'objet</label>
+      <input type="text" id="titre" required maxlength="80">
+    </div>
+    <div class="form-groupe">
+      <label for="categorie">Catégorie</label>
+      <select id="categorie" required>
+        <option value="Livres">📚 Livres</option>
+        <option value="Mobilier">🪑 Mobilier</option>
+        <option value="Électronique">💻 Électronique</option>
+        <option value="Vêtements">👕 Vêtements</option>
+        <option value="Cuisine">🍳 Cuisine</option>
+        <option value="Autre">📦 Autre</option>
+      </select>
+    </div>
+    <div class="form-groupe">
+      <label for="etat">État</label>
+      <select id="etat" required>
+        <option value="Neuf">Neuf</option>
+        <option value="Très bon état">Très bon état</option>
+        <option value="Bon état">Bon état</option>
+        <option value="Usagé">Usagé</option>
+      </select>
+    </div>
+    <div class="form-groupe">
+      <label for="statut">Statut</label>
+      <select id="statut">
+        <option value="disponible">Disponible</option>
+        <option value="donne">Donné</option>
+      </select>
+    </div>
+    <div class="form-groupe">
+      <label for="description">Description <em style="font-weight:300;font-size:.8rem">(optionnel)</em></label>
+      <textarea id="description" maxlength="300"></textarea>
+    </div>
+    <button class="btn btn-primaire btn-full" id="btn-save">Enregistrer les modifications</button>
+    <p class="lien-form"><a href="/profile.html">← Retour au profil</a></p>
+  </div>
+</main>
+
+<footer>
+  <div class="container footer-inner">
+    <span>© 2025 EcoTroc Étudiant — EFREI Paris</span>
+    <span class="badge-green">🌱 Modification sobre</span>
+  </div>
+</footer>
+
+<script src="/script.js" defer></script>
+<script>
+  /* Récupérer l'id depuis ?id=X dans l'URL */
+  const annonceId = new URLSearchParams(window.location.search).get('id');
+  if (!annonceId) window.location.href = '/profile.html';
+
+  /* Vérifier connexion + charger annonce */
+  async function init() {
+    const me = await fetch('/api/auth/me').then(r => r.json());
+    if (!me.connecte) { window.location.href = '/login.html'; return; }
+
+    const annonce = await fetch('/api/annonces/' + annonceId).then(r => r.json());
+    if (annonce.auteur_id !== me.id && me.role !== 'admin') {
+      window.location.href = '/profile.html'; return;
+    }
+    document.getElementById('titre').value       = annonce.titre;
+    document.getElementById('categorie').value   = annonce.categorie;
+    document.getElementById('etat').value        = annonce.etat;
+    document.getElementById('statut').value      = annonce.statut;
+    document.getElementById('description').value = annonce.description || '';
+  }
+
+  document.getElementById('btn-save').addEventListener('click', async () => {
+    const titre       = document.getElementById('titre').value.trim();
+    const categorie   = document.getElementById('categorie').value;
+    const etat        = document.getElementById('etat').value;
+    const statut      = document.getElementById('statut').value;
+    const description = document.getElementById('description').value.trim();
+    const msgErr      = document.getElementById('msg-erreur');
+    const msgOk       = document.getElementById('msg-succes');
+    msgErr.classList.remove('visible'); msgOk.classList.remove('visible');
+
+    if (!titre || !categorie || !etat) {
+      msgErr.textContent = 'Titre, catégorie et état sont obligatoires.';
+      return msgErr.classList.add('visible');
+    }
+
+    try {
+      const res  = await fetch('/api/annonces/' + annonceId, {
+        method: 'PUT', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ titre, categorie, etat, statut, description })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+      msgOk.textContent = '✓ Annonce mise à jour ! Retour au profil…';
+      msgOk.classList.add('visible');
+      setTimeout(() => window.location.href = '/profile.html', 1400);
+    } catch (err) {
+      msgErr.textContent = err.message;
+      msgErr.classList.add('visible');
+    }
+  });
+
+  init();
+</script>
+</body>
+</html>
