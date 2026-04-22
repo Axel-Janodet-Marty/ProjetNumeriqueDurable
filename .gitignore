@@ -1,0 +1,19 @@
+# Dépendances Node
+node_modules/
+
+# Variables d'environnement sensibles
+.env
+
+# Base de données locale
+database.db
+
+# Fichiers uploadés par les utilisateurs (binaires, non versionnés)
+public/uploads/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Système
+.DS_Store
+Thumbs.db

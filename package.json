@@ -1,0 +1,21 @@
+{
+  "name": "ecotroc",
+  "version": "1.0.0",
+  "description": "Plateforme sobre de don/troc d'objets entre étudiants EFREI",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "init-db": "node Init-db.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^9.4.3",
+    "compression": "^1.8.1",
+    "express": "^4.18.3",
+    "express-session": "^1.18.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
