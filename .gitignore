@@ -15,6 +15,11 @@ public/uploads/*
 *.log
 npm-debug.log*
 
+# IDE
+.idea/
+*.iml
+.vscode/
+
 # Système
 .DS_Store
 Thumbs.db
