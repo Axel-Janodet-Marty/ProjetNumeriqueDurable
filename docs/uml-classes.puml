@@ -1,0 +1,80 @@
+@startuml classes
+title EcoTroc — Diagramme de classes (MLD)
+
+skinparam classAttributeIconSize 0
+skinparam classFontStyle Bold
+
+class Utilisateur {
+  + id : INTEGER <<PK>>
+  + nom : TEXT
+  + email : TEXT <<UNIQUE>>
+  - mot_de_passe : TEXT <<bcrypt>>
+  + role : TEXT = "user"
+  + created_at : TEXT
+  --
+  + seConnecter()
+  + modifierProfil()
+  + supprimerCompte()
+}
+
+class Annonce {
+  + id : INTEGER <<PK>>
+  + titre : TEXT
+  + categorie : TEXT
+  + etat : TEXT
+  + description : TEXT
+  + image_path : TEXT
+  + statut : TEXT = "disponible"
+  + auteur_id : INTEGER <<FK>>
+  + created_at : TEXT
+  --
+  + publier()
+  + modifier()
+  + marquerDonne()
+  + supprimer()
+}
+
+enum RoleUtilisateur {
+  user
+  admin
+}
+
+enum StatutAnnonce {
+  disponible
+  donne
+}
+
+enum CategorieAnnonce {
+  Livres
+  Mobilier
+  Électronique
+  Vêtements
+  Cuisine
+  Autre
+}
+
+enum EtatObjet {
+  Neuf
+  "Très bon état"
+  "Bon état"
+  Usagé
+}
+
+Utilisateur "1" --> "0..*" Annonce : publie >
+Utilisateur --> RoleUtilisateur : a >
+Annonce --> StatutAnnonce : a >
+Annonce --> CategorieAnnonce : appartient à >
+Annonce --> EtatObjet : décrit par >
+
+note bottom of Annonce
+  ON DELETE CASCADE
+  sur auteur_id → Utilisateur
+  Purge automatique après 30 jours
+end note
+
+note bottom of Utilisateur
+  Indexes : email
+  Annonces : categorie, statut,
+  auteur_id, created_at
+end note
+@enduml

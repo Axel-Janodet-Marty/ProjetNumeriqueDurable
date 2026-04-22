@@ -1,0 +1,63 @@
+@startuml cas-utilisation
+title EcoTroc — Diagramme de cas d'utilisation
+
+left to right direction
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+
+actor "Visiteur" as V
+actor "Étudiant\n(connecté)" as U
+actor "Administrateur" as A
+
+rectangle "EcoTroc" {
+  usecase "Consulter les annonces" as UC1
+  usecase "Rechercher / filtrer" as UC2
+  usecase "S'inscrire" as UC3
+  usecase "Se connecter" as UC4
+  usecase "Se déconnecter" as UC5
+  usecase "Contacter un donneur" as UC6
+  usecase "Publier une annonce" as UC7
+  usecase "Modifier son annonce" as UC8
+  usecase "Supprimer son annonce" as UC9
+  usecase "Marquer comme donné" as UC10
+  usecase "Gérer son profil" as UC11
+  usecase "Supprimer son compte" as UC12
+  usecase "Gérer tous les utilisateurs" as UC13
+  usecase "Gérer toutes les annonces" as UC14
+  usecase "Compresser l'image (WebP)" as UC15
+}
+
+V --> UC1
+V --> UC2
+V --> UC3
+V --> UC4
+
+U --> UC1
+U --> UC2
+U --> UC5
+U --> UC6
+U --> UC7
+U --> UC8
+U --> UC9
+U --> UC10
+U --> UC11
+U --> UC12
+
+UC7 ..> UC15 : <<include>>
+
+A --> UC1
+A --> UC13
+A --> UC14
+A --> UC8
+A --> UC9
+
+note right of UC6
+  Requiert authentification
+  Révèle l'email de l'auteur
+end note
+
+note right of UC13
+  Liste paginée (12/page)
+  Modification et suppression
+end note
+@enduml

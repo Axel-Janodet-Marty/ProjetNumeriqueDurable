@@ -1,0 +1,48 @@
+@startuml sequence-connexion
+title EcoTroc — Diagramme de séquence : Connexion + Publication d'annonce
+
+actor Étudiant as U
+participant "Navigateur\n(HTML/JS)" as B
+participant "Express\n(server.js)" as S
+participant "routes/auth.js" as A
+participant "routes/annonces.js" as R
+database "SQLite\n(database.db)" as DB
+
+== Connexion ==
+
+U -> B : Saisit email + mot de passe
+B -> S : POST /api/auth/login\n{email, password}
+S -> A : rateLimit(10/min) vérifié
+A -> DB : SELECT id,nom,email,mot_de_passe,role\nFROM utilisateurs WHERE email=?
+DB --> A : ligne utilisateur
+A -> A : bcrypt.compareSync(password, hash)
+alt Identifiants corrects
+  A -> S : session.userId, nom, email, role
+  A --> B : 200 OK {message, nom, role}
+  B -> U : Redirection → /index.html
+else Identifiants incorrects
+  A --> B : 401 {message: "Identifiants incorrects"}
+  B -> U : Message d'erreur affiché
+end
+
+== Publication d'une annonce ==
+
+U -> B : Remplit formulaire + photo
+B -> B : compresserImage(file)\n→ canvas.toDataURL('image/webp')\n→ max 900px, qualité 0.75
+B -> S : POST /api/annonces\n{titre, categorie, etat,\ndescription, image:base64}
+S -> S : requireAuth(req)\n→ vérifie session.userId
+S -> R : routeur annonces
+R -> R : sauvegarderImage(base64)\n→ vérif taille < 250Ko\n→ écrit fichier .webp
+R -> DB : INSERT INTO annonces\n(titre,categorie,etat,description,\nimage_path,auteur_id)
+DB --> R : {lastInsertRowid}
+R --> B : 201 {message, id}
+B -> U : Toast "Annonce publiée !"
+B -> B : Redirection → /index.html
+
+note over B,S
+  Toutes les requêtes API :
+  Cache-Control: no-store
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+end note
+@enduml
