@@ -3,7 +3,7 @@ services:
     name: ecotroc
     runtime: node
     buildCommand: npm install
-    startCommand: npm run init-db && node server.js
+    startCommand: node server.js
     nodeVersion: "20"
     envVars:
       - key: NODE_ENV
