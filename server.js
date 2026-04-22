@@ -43,6 +43,7 @@ db.pragma('foreign_keys = ON');
 
 /* ── App Express ─────────────────────────────── */
 const app = express();
+app.set('trust proxy', 1);
 app.use(compression());
 app.use(express.json({ limit: '600kb' }));
 app.use(express.urlencoded({ extended: false }));
