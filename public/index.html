@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <meta name="description" content="EcoTroc — plateforme sobre de don et troc d'objets entre étudiants EFREI. Donnez, récupérez, zéro gaspillage.">
+  <title>EcoTroc — Donnez, trocquez, économisez</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container header-inner">
+    <a href="/index.html" class="logo" aria-label="EcoTroc — retour accueil">
+      <span class="logo-icon" aria-hidden="true">♻</span>EcoTroc
+    </a>
+    <nav aria-label="Navigation principale">
+      <ul class="nav-links">
+        <li><a href="/index.html" class="actif" aria-current="page">Accueil</a></li>
+        <li id="nav-compte"><a href="/login.html">Connexion</a></li>
+        <li id="nav-creer" style="display:none"><a href="/create-annonce.html">+ Donner</a></li>
+        <li id="nav-profil" style="display:none"><a href="/profile.html">Mon profil</a></li>
+        <li id="nav-admin" style="display:none"><a href="/admin.html">Admin</a></li>
+        <li id="nav-deconnexion" style="display:none"><a href="#" id="btn-deconnexion">Déconnexion</a></li>
+        <li><button class="nav-btn" id="btn-dark" title="Basculer mode sombre" aria-label="Mode sombre">🌙</button></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<section class="hero" aria-labelledby="hero-titre">
+  <div class="container">
+    <h1 id="hero-titre">Donnez. Trocquez.<br><em>Économisez.</em></h1>
+    <p>La plateforme sobre pour échanger des objets entre étudiants EFREI. Zéro intermédiaire, zéro gaspillage.</p>
+    <div class="hero-actions">
+      <a href="/create-annonce.html" class="btn btn-hero">♻ Proposer un objet</a>
+      <a href="/register.html" class="btn btn-hero-outline" id="hero-inscrire">Créer un compte</a>
+    </div>
+    <div class="hero-stats" aria-live="polite">
+      <div class="hero-stat">
+        <strong id="stat-annonces" aria-label="Objets disponibles">…</strong>
+        <span>objets disponibles</span>
+      </div>
+      <div class="hero-stat">
+        <strong id="stat-dons" aria-label="Objets déjà donnés">…</strong>
+        <span>objets déjà donnés</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<main class="container">
+  <h2 class="section-titre">Objets disponibles</h2>
+
+  <div class="recherche-bar" role="search">
+    <span aria-hidden="true" style="font-size:1rem;color:var(--text-hint)">🔍</span>
+    <input type="search" id="recherche" placeholder="Rechercher un objet (livre, chaise, câble…)"
+           autocomplete="off" aria-label="Rechercher une annonce">
+    <button class="btn btn-vert btn-sm" id="btn-recherche" aria-label="Lancer la recherche">Chercher</button>
+  </div>
+
+  <div class="filtres" id="filtres" role="group" aria-label="Filtrer par catégorie">
+    <button class="filtre-btn actif" data-cat="tous">Tout</button>
+    <button class="filtre-btn" data-cat="Livres">📚 Livres</button>
+    <button class="filtre-btn" data-cat="Mobilier">🪑 Mobilier</button>
+    <button class="filtre-btn" data-cat="Électronique">💻 Électronique</button>
+    <button class="filtre-btn" data-cat="Vêtements">👕 Vêtements</button>
+    <button class="filtre-btn" data-cat="Cuisine">🍳 Cuisine</button>
+    <button class="filtre-btn" data-cat="Autre">📦 Autre</button>
+  </div>
+
+  <div class="annonces-grid" id="annonces" aria-live="polite" aria-label="Liste des annonces">
+    <p class="vide"><span class="vide-icon">⏳</span>Chargement…</p>
+  </div>
+  <nav class="pagination" id="pagination" aria-label="Pages des annonces"></nav>
+</main>
+
+<!-- Modal contact -->
+<div class="modal-overlay" id="modal-contact" role="dialog" aria-modal="true" aria-labelledby="modal-contact-titre">
+  <div class="modal">
+    <h3 id="modal-contact-titre">Contacter le donneur</h3>
+    <p>Envoyez un e-mail à <strong id="contact-nom"></strong> pour récupérer cet objet.</p>
+    <div class="contact-box visible">
+      <span aria-hidden="true">✉</span>
+      <a id="contact-email" href="#"></a>
+    </div>
+    <div class="modal-actions" style="margin-top:18px">
+      <button class="btn btn-ghost btn-sm" id="btn-fermer-contact">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div class="container footer-inner">
+    <span>© 2025 EcoTroc Étudiant — EFREI Paris</span>
+    <span class="badge-green">🌱 Page : <span id="poids-page">…</span> KB — Objectif &lt; 200 KB</span>
+  </div>
+</footer>
+
+<!-- script.js chargé en defer : s'exécute APRÈS le parsing HTML -->
+<script src="/script.js" defer></script>
+
+<script>
+  /* ═══════════════════════════════════════════════════════
+     IMPORTANT : escapeHtml est redéfini ICI pour que
+     afficherAnnonces() puisse l'utiliser dès la 1ère
+     réponse API, avant que script.js (defer) soit exécuté.
+     Sans cela, sur localhost où la réponse est quasi-
+     instantanée, la fonction n'est pas encore définie →
+     les annonces ne s'affichent pas dans "Tout".
+  ═══════════════════════════════════════════════════════ */
+  function escapeHtml(s){
+    if(typeof s!=='string')return '';
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+            .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+  }
+
+  const ETAT_CONFIG={
+    'Neuf':         {dot:'dot-neuf', badge:'badge-neuf'},
+    'Très bon état':{dot:'dot-tbe',  badge:'badge-tbe'},
+    'Bon état':     {dot:'dot-be',   badge:'badge-be'},
+    'Usagé':        {dot:'dot-usage',badge:'badge-usage'},
+  };
+  const CAT_EMOJI={'Livres':'📚','Mobilier':'🪑','Électronique':'💻',
+    'Vêtements':'👕','Cuisine':'🍳','Autre':'📦'};
+
+  let pageCourante=1, categorieCourante='tous', rechercheCourante='';
+
+  /* ── Chargement des annonces ─────────────────── */
+  async function chargerAnnonces(page, cat, q){
+    const params = new URLSearchParams({page});
+    if(cat && cat!=='tous') params.set('categorie', cat);
+    if(q) params.set('q', q);
+    try{
+      /* cache:'no-store' : évite que le navigateur retourne
+         une ancienne réponse après création d'une annonce */
+      const res  = await fetch('/api/annonces?'+params, {cache:'no-store'});
+      const data = await res.json();
+      afficherAnnonces(data.annonces);
+      afficherPagination(data.page, data.pages);
+    }catch{
+      document.getElementById('annonces').innerHTML=
+              '<p class="vide"><span class="vide-icon">⚠</span>'+
+              'Serveur non disponible — lancez <code>node server.js</code></p>';
+    }
+  }
+
+  function isRecent(dateStr){
+    if(!dateStr) return false;
+    const [d,m,y] = dateStr.split('/');
+    const diff = (Date.now() - new Date(`${y}-${m}-${d}`).getTime()) / (1000*60*60*24);
+    return diff <= 3;
+  }
+
+  function afficherAnnonces(liste){
+    const c = document.getElementById('annonces');
+    if(!liste || !liste.length){
+      c.innerHTML='<div class="vide"><div class="vide-icon">📭</div>Aucun objet trouvé. Soyez le premier à donner !</div>';
+      return;
+    }
+    c.innerHTML = liste.map(a => {
+      const ec    = ETAT_CONFIG[a.etat] || ETAT_CONFIG['Usagé'];
+      const emoji = CAT_EMOJI[a.categorie] || '📦';
+      const imgHtml = a.image_path
+              ? `<div class="carte-img"><img src="/uploads/${escapeHtml(a.image_path)}"
+             alt="Photo de l'objet : ${escapeHtml(a.titre)}" loading="lazy"
+             width="225" height="160"></div>`
+              : `<div class="carte-img no-photo" aria-label="Pas de photo">${emoji}</div>`;
+      return `
+    <article class="carte">
+      ${imgHtml}
+      <div class="carte-body">
+        <div class="carte-top">
+          <span class="carte-categorie">${escapeHtml(a.categorie)}</span>
+          ${isRecent(a.created_at)?'<span class="badge-recent">Nouveau</span>':''}
+        </div>
+        <h3>${escapeHtml(a.titre)}</h3>
+        <p class="carte-etat"><span class="dot ${ec.dot}" aria-hidden="true"></span>${escapeHtml(a.etat)}</p>
+        ${a.auteur?`<p class="carte-meta">Par ${escapeHtml(a.auteur)} · ${escapeHtml(a.created_at||'')}</p>`:''}
+      </div>
+      <div class="carte-footer">
+        <button class="btn btn-primaire btn-sm" onclick="contacter(${a.id})"
+                aria-label="Contacter le donneur pour ${escapeHtml(a.titre)}">✉ Contacter</button>
+        <button class="btn btn-ghost btn-sm"
+                onclick="if(typeof partagerAnnonce!=='undefined')partagerAnnonce('${escapeHtml(a.titre).replace(/'/g,"\\'")}','${window.location.origin}/index.html')"
+                aria-label="Partager cette annonce">↗</button>
+      </div>
+    </article>`;
+    }).join('');
+  }
+
+  function afficherPagination(page, pages){
+    const p = document.getElementById('pagination');
+    if(pages <= 1){p.innerHTML='';return;}
+    p.innerHTML =
+            `<button class="pag-btn" onclick="allerPage(${page-1})" ${page<=1?'disabled':''} aria-label="Page précédente">‹ Préc.</button>`+
+            Array.from({length:pages},(_,i)=>
+                    `<button class="pag-btn${i+1===page?' actif':''}" onclick="allerPage(${i+1})" aria-label="Page ${i+1}">${i+1}</button>`
+            ).join('')+
+            `<button class="pag-btn" onclick="allerPage(${page+1})" ${page>=pages?'disabled':''} aria-label="Page suivante">Suiv. ›</button>`;
+  }
+
+  function allerPage(p){
+    pageCourante=p;
+    chargerAnnonces(p, categorieCourante, rechercheCourante);
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+
+  function lancerRecherche(){
+    rechercheCourante = document.getElementById('recherche').value.trim();
+    pageCourante = 1;
+    chargerAnnonces(1, categorieCourante, rechercheCourante);
+  }
+
+  async function contacter(id){
+    try{
+      const r = await fetch('/api/annonces/'+id+'/contact', {cache:'no-store'});
+      if(r.status===401){ window.location.href='/login.html'; return; }
+      const data = await r.json();
+      document.getElementById('contact-nom').textContent = data.nom;
+      const link = document.getElementById('contact-email');
+      link.textContent = data.email;
+      link.href = 'mailto:'+data.email;
+      document.getElementById('modal-contact').classList.add('visible');
+    }catch(e){
+      /* toast est défini dans script.js — fallback si pas encore chargé */
+      if(typeof toast!=='undefined') toast('Connexion requise pour contacter','erreur');
+      else alert('Connexion requise pour contacter le donneur.');
+    }
+  }
+
+  async function chargerStats(){
+    try{
+      const data = await fetch('/api/stats', {cache:'no-store'}).then(r=>r.json());
+      const el1 = document.getElementById('stat-annonces');
+      const el2 = document.getElementById('stat-dons');
+      if(el1) el1.textContent = data.annonces;
+      if(el2) el2.textContent = data.dons;
+    }catch(_){}
+  }
+
+  /* ── Événements ──────────────────────────────── */
+  document.getElementById('recherche').addEventListener('keydown', e=>{
+    if(e.key==='Enter') lancerRecherche();
+  });
+  document.getElementById('btn-recherche').addEventListener('click', lancerRecherche);
+
+  document.getElementById('filtres').addEventListener('click', e=>{
+    const btn = e.target.closest('.filtre-btn');
+    if(!btn) return;
+    document.querySelectorAll('.filtre-btn').forEach(b=>b.classList.remove('actif'));
+    btn.classList.add('actif');
+    btn.setAttribute('aria-pressed','true');
+    categorieCourante = btn.dataset.cat;
+    pageCourante = 1;
+    chargerAnnonces(1, categorieCourante, rechercheCourante);
+  });
+
+  document.getElementById('btn-fermer-contact').addEventListener('click', ()=>{
+    document.getElementById('modal-contact').classList.remove('visible');
+  });
+  /* Fermer modal en cliquant l'overlay */
+  document.getElementById('modal-contact').addEventListener('click', e=>{
+    if(e.target===document.getElementById('modal-contact'))
+      document.getElementById('modal-contact').classList.remove('visible');
+  });
+
+  /* ── Indicateur poids page (US5) ─────────────── */
+  window.addEventListener('load', ()=>{
+    const nav = performance.getEntriesByType('navigation')[0];
+    const res = performance.getEntriesByType('resource');
+    const kb  = ((nav?.transferSize||0) + res.reduce((s,e)=>s+(e.transferSize||0),0)) / 1024;
+    const el  = document.getElementById('poids-page');
+    if(el) el.textContent = kb.toFixed(1);
+  });
+
+  /* ══════════════════════════════════════════════
+     CHARGEMENT INITIAL
+     Appels placés ici (inline, fin de body) :
+     - escapeHtml est défini ci-dessus → pas de dépendance à script.js
+     - cache:'no-store' → données toujours fraîches
+     Les annonces de l'onglet "Tout" s'affichent
+     immédiatement après création d'une annonce.
+  ══════════════════════════════════════════════ */
+  chargerStats();
+  chargerAnnonces(1, 'tous', '');
+</script>
+</body>
+</html>

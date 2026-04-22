@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <meta name="description" content="Tableau de bord administrateur EcoTroc — gestion des utilisateurs et des annonces.">
+  <title>Administration — EcoTroc</title>
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    .admin-wrap{max-width:780px;margin:32px auto;padding:0 20px}
+    table{width:100%;border-collapse:collapse;background:var(--blanc);
+      border:1px solid var(--bordure);border-radius:var(--radius);overflow:hidden}
+    th{background:var(--vert-fonce);color:var(--blanc);padding:10px 12px;
+      font-size:.83rem;font-weight:600;text-align:left}
+    td{padding:9px 12px;font-size:.85rem;border-bottom:1px solid var(--bordure)}
+    tr:last-child td{border-bottom:none}
+    tr:hover td{background:var(--vert-clair)}
+    .badge-role{font-size:.72rem;font-weight:600;padding:2px 8px;border-radius:10px}
+    .badge-admin{background:#ffeeba;color:#856404}
+    .badge-user{background:var(--vert-clair);color:var(--vert-fonce)}
+  </style>
+</head>
+<body>
+<header class="site-header">
+  <div class="container header-inner">
+    <a href="/index.html" class="logo"><span class="logo-icon">♻</span>EcoTroc</a>
+    <nav><ul class="nav-links">
+      <li><a href="/index.html">Accueil</a></li>
+      <li id="nav-compte" style="display:none"><a href="/login.html">Connexion</a></li>
+      <li id="nav-creer" style="display:none"><a href="/create-annonce.html">+ Donner</a></li>
+      <li id="nav-profil" style="display:none"><a href="/profile.html">Mon profil</a></li>
+      <li id="nav-admin" style="display:none"><a href="/admin.html" class="actif">Admin</a></li>
+      <li id="nav-deconnexion" style="display:none"><a href="#" id="btn-deconnexion">Déconnexion</a></li>
+    </ul></nav>
+  </div>
+</header>
+
+<div class="admin-wrap">
+  <h2 class="section-titre">Tableau de bord administrateur</h2>
+  <div class="alerte alerte-erreur" id="msg-erreur" role="alert"></div>
+
+  <!-- Utilisateurs -->
+  <h3 style="font-size:1rem;font-weight:600;color:var(--vert-fonce);margin-bottom:12px">
+    Utilisateurs (<span id="total-users">…</span>)
+  </h3>
+  <div style="overflow-x:auto">
+    <table id="table-users">
+      <thead><tr>
+        <th>ID</th><th>Nom</th><th>E-mail</th><th>Rôle</th><th>Inscrit le</th><th>Action</th>
+      </tr></thead>
+      <tbody id="tbody-users"></tbody>
+    </table>
+  </div>
+  <div class="pagination" id="pag-users" style="margin-top:12px"></div>
+
+  <!-- Annonces -->
+  <h3 style="font-size:1rem;font-weight:600;color:var(--vert-fonce);margin:28px 0 12px">
+    Toutes les annonces (<span id="total-annonces">…</span>)
+  </h3>
+  <div style="overflow-x:auto">
+    <table id="table-annonces">
+      <thead><tr>
+        <th>ID</th><th>Titre</th><th>Catégorie</th><th>État</th><th>Statut</th><th>Auteur</th><th>Action</th>
+      </tr></thead>
+      <tbody id="tbody-annonces"></tbody>
+    </table>
+  </div>
+  <div class="pagination" id="pag-annonces" style="margin-top:12px"></div>
+</div>
+
+<footer>
+  <div class="container footer-inner">
+    <span>© 2025 EcoTroc Étudiant — EFREI Paris</span>
+    <span class="badge-green">🌱 Administration sobre</span>
+  </div>
+</footer>
+
+<script src="/script.js" defer></script>
+<script>
+  /* Vérifier accès admin */
+  fetch('/api/auth/me').then(r => r.json()).then(d => {
+    if (!d.connecte || d.role !== 'admin') window.location.href = '/index.html';
+  });
+
+  async function chargerUsers(page=1) {
+    const res  = await fetch('/api/users?page=' + page);
+    const data = await res.json();
+    document.getElementById('total-users').textContent = data.total;
+    const tbody = document.getElementById('tbody-users');
+    tbody.innerHTML = data.users.map(u => `
+      <tr>
+        <td>${u.id}</td>
+        <td>${escapeHtml(u.nom)}</td>
+        <td>${escapeHtml(u.email)}</td>
+        <td><span class="badge-role badge-${u.role}">${u.role}</span></td>
+        <td>${escapeHtml(u.created_at)}</td>
+        <td>
+          <button class="btn btn-danger btn-sm" onclick="supprimerUser(${u.id})">Supprimer</button>
+        </td>
+      </tr>`).join('');
+    paginer('pag-users', data.page, data.pages, chargerUsers);
+  }
+
+  async function chargerAnnonces(page=1) {
+    const res  = await fetch('/api/annonces?page=' + page);
+    const data = await res.json();
+    document.getElementById('total-annonces').textContent = data.total;
+    const tbody = document.getElementById('tbody-annonces');
+    tbody.innerHTML = data.annonces.map(a => `
+      <tr>
+        <td>${a.id}</td>
+        <td>${escapeHtml(a.titre)}</td>
+        <td>${escapeHtml(a.categorie)}</td>
+        <td>${escapeHtml(a.etat)}</td>
+        <td>${a.statut}</td>
+        <td>${escapeHtml(a.auteur||'')}</td>
+        <td>
+          <button class="btn btn-danger btn-sm" onclick="supprimerAnnonce(${a.id})">Supprimer</button>
+        </td>
+      </tr>`).join('');
+    paginer('pag-annonces', data.page, data.pages, chargerAnnonces);
+  }
+
+  async function supprimerUser(id) {
+    if (!confirm('Supprimer cet utilisateur et toutes ses annonces ?')) return;
+    await fetch('/api/users/' + id, { method: 'DELETE' });
+    chargerUsers(); chargerAnnonces();
+  }
+
+  async function supprimerAnnonce(id) {
+    if (!confirm('Supprimer cette annonce ?')) return;
+    await fetch('/api/annonces/' + id, { method: 'DELETE' });
+    chargerAnnonces();
+  }
+
+  function paginer(elId, page, pages, fn) {
+    const p = document.getElementById(elId);
+    if (pages <= 1) { p.innerHTML = ''; return; }
+    p.innerHTML =
+            `<button class="pag-btn" onclick="(${fn.name})(${page-1})" ${page<=1?'disabled':''}>‹</button>` +
+            `<span style="padding:6px 12px;font-size:.85rem">${page} / ${pages}</span>` +
+            `<button class="pag-btn" onclick="(${fn.name})(${page+1})" ${page>=pages?'disabled':''}>›</button>`;
+  }
+
+  chargerUsers();
+  chargerAnnonces();
+</script>
+</body>
+</html>

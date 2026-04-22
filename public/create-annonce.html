@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <meta name="description" content="Proposez un objet à donner ou à troquer sur EcoTroc — formulaire simple, publication instantanée.">
+  <title>Donner un objet — EcoTroc</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="site-header">
+  <div class="container header-inner">
+    <a href="/index.html" class="logo"><span class="logo-icon">♻</span>EcoTroc</a>
+    <nav><ul class="nav-links">
+      <li><a href="/index.html">Accueil</a></li>
+      <li id="nav-compte"><a href="/login.html">Connexion</a></li>
+      <li id="nav-creer" style="display:none"><a href="/create-annonce.html" class="actif">+ Donner</a></li>
+      <li id="nav-profil" style="display:none"><a href="/profile.html">Mon profil</a></li>
+      <li id="nav-admin" style="display:none"><a href="/admin.html">Admin</a></li>
+      <li id="nav-deconnexion" style="display:none"><a href="#" id="btn-deconnexion">Déconnexion</a></li>
+      <li><button class="nav-btn" id="btn-dark">🌙</button></li>
+    </ul></nav>
+  </div>
+</header>
+
+<main class="page-form">
+  <div class="form-card" style="max-width:500px">
+    <h1>Proposer un objet</h1>
+    <p class="sous-titre">Un formulaire court, une photo optionnelle — votre objet trouve preneur en quelques secondes.</p>
+
+    <div class="alerte alerte-erreur" id="msg-erreur" role="alert"></div>
+    <div class="alerte alerte-succes" id="msg-succes" role="status"></div>
+
+    <div class="form-groupe">
+      <label for="titre">Titre de l'objet</label>
+      <input type="text" id="titre" placeholder="Ex : Livre Algorithmes, Chaise de bureau…" required maxlength="80">
+      <span class="aide-champ">80 caractères maximum.</span>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-groupe">
+        <label for="categorie">Catégorie</label>
+        <select id="categorie" required>
+          <option value="" disabled selected>Choisir…</option>
+          <option value="Livres">📚 Livres</option>
+          <option value="Mobilier">🪑 Mobilier</option>
+          <option value="Électronique">💻 Électronique</option>
+          <option value="Vêtements">👕 Vêtements</option>
+          <option value="Cuisine">🍳 Cuisine</option>
+          <option value="Autre">📦 Autre</option>
+        </select>
+      </div>
+      <div class="form-groupe">
+        <label for="etat">État</label>
+        <select id="etat" required>
+          <option value="" disabled selected>Choisir…</option>
+          <option value="Neuf">✨ Neuf</option>
+          <option value="Très bon état">👍 Très bon état</option>
+          <option value="Bon état">✔ Bon état</option>
+          <option value="Usagé">🔧 Usagé</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-groupe">
+      <label for="description">Description <em style="font-weight:400;font-size:.8rem;color:var(--text-hint)">(optionnel)</em></label>
+      <textarea id="description" placeholder="Quelques détails supplémentaires…" maxlength="300"></textarea>
+      <span class="aide-champ">300 caractères max.</span>
+    </div>
+
+    <!-- Zone upload photo -->
+    <div class="form-groupe">
+      <label>Photo de l'objet <em style="font-weight:400;font-size:.8rem;color:var(--text-hint)">(optionnel — compressée automatiquement)</em></label>
+      <div class="upload-zone" id="upload-zone">
+        <input type="file" id="photo-input" accept="image/*" onchange="traiterPhoto(this)">
+        <span class="upload-icon">📷</span>
+        <p>Glissez une photo ici ou <strong>cliquez pour choisir</strong></p>
+        <small>JPG, PNG, HEIC — compressé automatiquement sous 200 Ko côté client</small>
+      </div>
+      <img id="photo-preview" class="photo-preview" alt="Prévisualisation">
+      <p class="compression-info" id="compression-info"></p>
+      <button id="btn-retirer-photo" class="btn btn-danger btn-sm" style="display:none;margin-top:6px" onclick="retirerPhoto()">✕ Retirer la photo</button>
+    </div>
+
+    <button class="btn btn-primaire btn-full" id="btn-publier" style="margin-top:8px">
+      ♻ Publier mon don
+    </button>
+    <p class="lien-form"><a href="/index.html">← Retour aux annonces</a></p>
+  </div>
+</main>
+
+<footer>
+  <div class="container footer-inner">
+    <span>© 2025 EcoTroc Étudiant — EFREI Paris</span>
+    <span class="badge-green">🌱 Images compressées côté client — 0 Ko superflu envoyé</span>
+  </div>
+</footer>
+
+<script src="/script.js" defer></script>
+<script>
+  let imageBase64 = null;
+
+  /* Vérifier connexion */
+  fetch('/api/auth/me').then(r=>r.json()).then(d=>{
+    if(!d.connecte) window.location.href='/login.html';
+  });
+
+  /* ── Drag & drop sur la zone upload ── */
+  const zone = document.getElementById('upload-zone');
+  zone.addEventListener('dragover', e=>{ e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', ()=>zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e=>{
+    e.preventDefault(); zone.classList.remove('drag-over');
+    const file=e.dataTransfer.files[0];
+    if(file&&file.type.startsWith('image/')) traiterPhoto({files:[file]});
+  });
+
+  async function traiterPhoto(input){
+    const file=input.files?.[0];
+    if(!file) return;
+    if(!file.type.startsWith('image/')){
+      toast('Ce fichier n\'est pas une image.','erreur'); return;
+    }
+    const info=document.getElementById('compression-info');
+    info.textContent='⏳ Compression en cours…';
+    info.classList.add('visible');
+    try{
+      const res=await compresserImage(file);
+      imageBase64=res.base64;
+      /* Prévisualisation */
+      const prev=document.getElementById('photo-preview');
+      prev.src=res.base64; prev.classList.add('visible');
+      document.getElementById('btn-retirer-photo').style.display='inline-flex';
+      /* Masquer la zone de dépôt */
+      zone.style.display='none';
+      info.textContent=`✓ Compressé : ${res.kb} Ko (−${res.ratio}% par rapport à l'original)`;
+      toast(`Photo compressée à ${res.kb} Ko ✓`,'succes');
+    }catch(err){
+      info.textContent='Erreur lors de la compression.';
+      toast('Erreur compression image.','erreur');
+    }
+  }
+
+  function retirerPhoto(){
+    imageBase64=null;
+    document.getElementById('photo-preview').classList.remove('visible');
+    document.getElementById('photo-preview').src='';
+    document.getElementById('btn-retirer-photo').style.display='none';
+    document.getElementById('upload-zone').style.display='';
+    document.getElementById('compression-info').classList.remove('visible');
+    document.getElementById('photo-input').value='';
+  }
+
+  document.getElementById('btn-publier').addEventListener('click', async()=>{
+    const titre       = document.getElementById('titre').value.trim();
+    const categorie   = document.getElementById('categorie').value;
+    const etat        = document.getElementById('etat').value;
+    const description = document.getElementById('description').value.trim();
+    const msgErr      = document.getElementById('msg-erreur');
+    const msgOk       = document.getElementById('msg-succes');
+    msgErr.classList.remove('visible'); msgOk.classList.remove('visible');
+
+    if(!titre||!categorie||!etat){
+      msgErr.textContent='Titre, catégorie et état sont obligatoires.';
+      return msgErr.classList.add('visible');
+    }
+
+    const btn=document.getElementById('btn-publier');
+    btn.textContent='Publication…'; btn.disabled=true;
+
+    try{
+      const res=await fetch('/api/annonces',{
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({titre,categorie,etat,description,image:imageBase64})
+      });
+      const data=await res.json();
+      if(!res.ok) throw new Error(data.message);
+      toast('Annonce publiée avec succès !','succes');
+      setTimeout(()=>window.location.href='/index.html',1200);
+    }catch(err){
+      msgErr.textContent=err.message;
+      msgErr.classList.add('visible');
+      btn.textContent='♻ Publier mon don'; btn.disabled=false;
+    }
+  });
+</script>
+</body>
+</html>
