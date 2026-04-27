@@ -5,7 +5,7 @@ const bcrypt  = require('bcryptjs');
 module.exports = function authRouter(db, rateLimit) {
   const router = express.Router();
 
-  router.post('/register', rateLimit(5, 60_000), (req, res) => {
+  router.post('/register', rateLimit(5, 60_000), async (req, res) => {
     const { nom, email, password } = req.body;
     if (!nom || !email || !password)
       return res.status(400).json({ message: 'Tous les champs sont obligatoires.' });
@@ -13,12 +13,12 @@ module.exports = function authRouter(db, rateLimit) {
       return res.status(400).json({ message: "Format d'e-mail invalide." });
     if (password.length < 14)
       return res.status(400).json({ message: 'Mot de passe trop court (14 caractères minimum).' });
-    if (db.prepare('SELECT id FROM utilisateurs WHERE email=?').get(email.toLowerCase()))
-      return res.status(409).json({ message: 'Cet e-mail est déjà utilisé.' });
     try {
+      if (await db.prepare('SELECT id FROM utilisateurs WHERE email=?').get(email.toLowerCase()))
+        return res.status(409).json({ message: 'Cet e-mail est déjà utilisé.' });
       const hash = bcrypt.hashSync(password, 10);
-      const r = db.prepare('INSERT INTO utilisateurs(nom,email,mot_de_passe) VALUES(?,?,?)')
-          .run(nom.trim(), email.toLowerCase(), hash);
+      const r = await db.prepare('INSERT INTO utilisateurs(nom,email,mot_de_passe) VALUES(?,?,?)')
+        .run(nom.trim(), email.toLowerCase(), hash);
       req.session.userId = r.lastInsertRowid;
       req.session.nom    = nom.trim();
       req.session.email  = email.toLowerCase();
@@ -30,20 +30,25 @@ module.exports = function authRouter(db, rateLimit) {
     }
   });
 
-  router.post('/login', rateLimit(10, 60_000), (req, res) => {
+  router.post('/login', rateLimit(10, 60_000), async (req, res) => {
     const { email, password } = req.body;
     if (!email || !password)
       return res.status(400).json({ message: 'E-mail et mot de passe requis.' });
-    const user = db.prepare(
-      'SELECT id,nom,email,mot_de_passe,role FROM utilisateurs WHERE email=?'
-    ).get(email.toLowerCase());
-    if (!user || !bcrypt.compareSync(password, user.mot_de_passe))
-      return res.status(401).json({ message: 'Identifiants incorrects.' });
-    req.session.userId = user.id;
-    req.session.nom    = user.nom;
-    req.session.email  = user.email;
-    req.session.role   = user.role;
-    return res.json({ message: 'Connecté.', nom: user.nom, role: user.role });
+    try {
+      const user = await db.prepare(
+        'SELECT id,nom,email,mot_de_passe,role FROM utilisateurs WHERE email=?'
+      ).get(email.toLowerCase());
+      if (!user || !bcrypt.compareSync(password, user.mot_de_passe))
+        return res.status(401).json({ message: 'Identifiants incorrects.' });
+      req.session.userId = user.id;
+      req.session.nom    = user.nom;
+      req.session.email  = user.email;
+      req.session.role   = user.role;
+      return res.json({ message: 'Connecté.', nom: user.nom, role: user.role });
+    } catch (err) {
+      console.error('ERREUR LOGIN:', err.message);
+      return res.status(500).json({ message: 'Erreur interne du serveur.' });
+    }
   });
 
   router.post('/logout', (req, res) => {
