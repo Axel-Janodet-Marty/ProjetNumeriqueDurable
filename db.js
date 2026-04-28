@@ -32,8 +32,8 @@ function prepare(sql) {
 }
 
 async function exec(sql) {
-  const stmts = sql.split(';').map(s => s.trim()).filter(Boolean).map(s => ({ sql: s }));
-  if (stmts.length) await client.batch(stmts, 'write');
+  const stmts = sql.split(';').map(s => s.trim()).filter(Boolean);
+  for (const s of stmts) await client.execute({ sql: s, args: [] });
 }
 
 async function pragma(stmt) {
