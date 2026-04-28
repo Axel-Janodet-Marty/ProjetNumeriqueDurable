@@ -1,22 +1,24 @@
 'use strict';
-const express     = require('express');
-const session     = require('express-session');
-const compression = require('compression');
-const path        = require('path');
-const fs          = require('fs');
-const bcrypt      = require('bcryptjs');
-const db          = require('./db');
+const path = require('path');
+const fs   = require('fs');
 
-/* Chargement du fichier .env sans dépendance externe */
+/* Chargement du fichier .env AVANT tout require() qui lit process.env */
 try {
   const envFile = path.join(__dirname, '.env');
   if (fs.existsSync(envFile)) {
     fs.readFileSync(envFile, 'utf8').split('\n').forEach(line => {
       const [key, ...vals] = line.split('=');
-      if (key && !key.startsWith('#')) process.env[key.trim()] = vals.join('=').trim();
+      if (key && !key.startsWith('#') && !(key.trim() in process.env))
+        process.env[key.trim()] = vals.join('=').trim();
     });
   }
 } catch (_) {}
+
+const express     = require('express');
+const session     = require('express-session');
+const compression = require('compression');
+const bcrypt      = require('bcryptjs');
+const db          = require('./db');
 
 const PORT       = process.env.PORT || 3000;
 const SECRET     = process.env.SESSION_SECRET;
