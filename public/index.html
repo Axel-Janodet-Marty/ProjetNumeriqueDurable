@@ -162,8 +162,8 @@
     c.innerHTML = liste.map(a => {
       const ec    = ETAT_CONFIG[a.etat] || ETAT_CONFIG['Usagé'];
       const emoji = CAT_EMOJI[a.categorie] || '📦';
-      const imgHtml = a.image_path
-              ? `<div class="carte-img"><img src="/uploads/${escapeHtml(a.image_path)}"
+      const imgHtml = a.has_image
+              ? `<div class="carte-img"><img src="/api/annonces/${a.id}/image"
              alt="Photo de l'objet : ${escapeHtml(a.titre)}" loading="lazy"
              width="225" height="160"></div>`
               : `<div class="carte-img no-photo" aria-label="Pas de photo">${emoji}</div>`;
