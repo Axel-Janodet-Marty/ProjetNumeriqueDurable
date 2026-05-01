@@ -115,18 +115,12 @@ ecotroc/
 
 ---
 
-## Rapport PDF
-
-📄 [Voir le rapport](docs/rapport.pdf) _(à ajouter)_
-
----
-
 ## Métriques Green IT cibles
 
 | Indicateur | Objectif | Résultat |
 |------------|----------|----------|
-| Score Lighthouse Performance | > 80/100 | _(à mesurer)_ |
-| Score Lighthouse Accessibilité | > 90/100 | _(à mesurer)_ |
+| Score Lighthouse Performance | > 80/100 | 100 |
+| Score Lighthouse Accessibilité | > 90/100 | 96 |
 | Poids de page (index) | < 200 Ko | ~50 Ko ✅ |
 | Requêtes HTTP / page | < 15 | ~5 ✅ |
 | Dépendances npm | Minimal | 6 ✅ |
