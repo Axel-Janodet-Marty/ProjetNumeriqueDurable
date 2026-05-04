@@ -174,6 +174,22 @@ module.exports = function annoncesRouter(db, requireAuth, _UPLOAD_DIR, PAGE_SIZE
     }
   });
 
+  router.post('/:id/signaler', async (req, res) => {
+    const id = parseInt(req.params.id);
+    const { raison } = req.body;
+    const raisons_valides = ['Contenu inapproprié','Objet déjà donné','Fausse annonce','Autre'];
+    if (!raison || !raisons_valides.includes(raison))
+      return res.status(400).json({ message: 'Raison invalide.' });
+    try {
+      const a = await db.prepare('SELECT id FROM annonces WHERE id=?').get(id);
+      if (!a) return res.status(404).json({ message: 'Annonce introuvable.' });
+      await db.prepare('INSERT INTO signalements(annonce_id,raison) VALUES(?,?)').run(id, raison);
+      return res.json({ message: 'Signalement envoyé. Merci pour votre vigilance !' });
+    } catch (err) {
+      return res.status(500).json({ message: 'Erreur interne.' });
+    }
+  });
+
   router.delete('/:id', requireAuth, async (req, res) => {
     const id = parseInt(req.params.id);
     try {

@@ -96,6 +96,42 @@
   </div>
 </div>
 
+<!-- Modal QR Code -->
+<div class="modal-overlay" id="modal-qr" role="dialog" aria-modal="true" aria-labelledby="qr-titre">
+  <div class="modal" style="text-align:center;max-width:270px">
+    <h3 id="qr-titre" style="font-size:.97rem;margin-bottom:3px"></h3>
+    <p style="font-size:.78rem;color:var(--text-soft);margin-bottom:14px">Scannez pour accéder à EcoTroc</p>
+    <img id="qr-img" src="" alt="QR Code"
+         style="width:180px;height:180px;margin:0 auto 16px;border:1px solid var(--border);border-radius:10px;display:block">
+    <div class="modal-actions" style="justify-content:center;gap:8px">
+      <button class="btn btn-outline btn-sm" onclick="imprimerQR()">🖨 Imprimer</button>
+      <button class="btn btn-ghost btn-sm" onclick="fermerModal('modal-qr')">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal signalement -->
+<div class="modal-overlay" id="modal-signalement" role="dialog" aria-modal="true">
+  <div class="modal">
+    <h3>🚩 Signaler cette annonce</h3>
+    <p>Aidez-nous à maintenir la qualité des annonces.</p>
+    <div class="form-groupe">
+      <label for="raison-signalement">Raison</label>
+      <select id="raison-signalement">
+        <option value="">Choisir une raison…</option>
+        <option value="Contenu inapproprié">Contenu inapproprié</option>
+        <option value="Objet déjà donné">Objet déjà donné</option>
+        <option value="Fausse annonce">Fausse annonce</option>
+        <option value="Autre">Autre</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-sm" onclick="fermerModal('modal-signalement')">Annuler</button>
+      <button class="btn btn-outline-ambre btn-sm" id="btn-confirmer-signalement">Signaler</button>
+    </div>
+  </div>
+</div>
+
 <footer>
   <div class="container footer-inner">
     <span>© 2025 EcoTroc Étudiant — EFREI Paris</span>
@@ -242,6 +278,10 @@
           <button class="btn btn-ghost btn-sm btn-favori${estFav?' est-favori':''}"
                   data-fav-id="${a.id}" onclick="toggleFavori(${i})"
                   aria-label="${estFav?'Retirer des favoris':'Ajouter aux favoris'}">${estFav?'♥':'♡'}</button>
+          <button class="btn btn-ghost btn-sm" onclick="ouvrirQR(${i})"
+                  title="Générer un QR code à imprimer" aria-label="QR Code">📋</button>
+          <button class="btn btn-ghost btn-sm" onclick="ouvrirSignalement(${i})"
+                  title="Signaler cette annonce" aria-label="Signaler">🚩</button>
           <button class="btn btn-ghost btn-sm"
                   onclick="if(typeof partagerAnnonce!=='undefined')partagerAnnonce('${escapeHtml(a.titre).replace(/'/g,"\\'")}','${window.location.origin}/index.html')"
                   aria-label="Partager cette annonce">↗</button>
@@ -303,6 +343,65 @@
     }catch(_){}
   }
 
+  /* ── Utilitaires modals ─────────────────────── */
+  function fermerModal(id){ document.getElementById(id).classList.remove('visible'); }
+
+  /* ── QR Code ─────────────────────────────────── */
+  function ouvrirQR(index){
+    const a = annoncesCache[index];
+    if(!a) return;
+    const url = encodeURIComponent(window.location.origin+'/index.html');
+    document.getElementById('qr-titre').textContent = a.titre;
+    document.getElementById('qr-img').src =
+      `https://api.qrserver.com/v1/create-qr-code/?size=180x180&color=143d2b&data=${url}`;
+    document.getElementById('modal-qr').classList.add('visible');
+  }
+  function imprimerQR(){
+    const img = document.getElementById('qr-img');
+    const titre = document.getElementById('qr-titre').textContent;
+    const w = window.open('','_blank','width=300,height=360');
+    w.document.write(
+      `<body style="font-family:sans-serif;text-align:center;padding:24px">
+       <img src="${img.src}" style="width:200px"><br>
+       <strong>${titre}</strong><br>
+       <small>EcoTroc — ${window.location.origin}</small>
+       </body>`
+    );
+    w.document.close();
+    w.focus();
+    w.print();
+  }
+
+  /* ── Signalement ─────────────────────────────── */
+  let _signalementId = null;
+  function ouvrirSignalement(index){
+    const a = annoncesCache[index];
+    if(!a) return;
+    _signalementId = a.id;
+    document.getElementById('raison-signalement').value = '';
+    document.getElementById('modal-signalement').classList.add('visible');
+  }
+  document.getElementById('btn-confirmer-signalement').addEventListener('click', async()=>{
+    const raison = document.getElementById('raison-signalement').value;
+    if(!raison){ toast('Choisissez une raison.','erreur'); return; }
+    try{
+      const res  = await fetch(`/api/annonces/${_signalementId}/signaler`,{
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({raison})
+      });
+      const data = await res.json();
+      fermerModal('modal-signalement');
+      toast(data.message||'Signalement enregistré.','succes');
+    }catch{ toast('Erreur lors du signalement.','erreur'); }
+  });
+
+  /* Fermer les modals en cliquant l'overlay */
+  document.querySelectorAll('.modal-overlay').forEach(overlay=>{
+    overlay.addEventListener('click', e=>{
+      if(e.target===overlay) overlay.classList.remove('visible');
+    });
+  });
+
   /* ── Événements ──────────────────────────────── */
   document.getElementById('recherche').addEventListener('keydown', e=>{
     if(e.key==='Enter') lancerRecherche();
@@ -320,14 +419,7 @@
     chargerAnnonces(1, categorieCourante, rechercheCourante);
   });
 
-  document.getElementById('btn-fermer-contact').addEventListener('click', ()=>{
-    document.getElementById('modal-contact').classList.remove('visible');
-  });
-  /* Fermer modal en cliquant l'overlay */
-  document.getElementById('modal-contact').addEventListener('click', e=>{
-    if(e.target===document.getElementById('modal-contact'))
-      document.getElementById('modal-contact').classList.remove('visible');
-  });
+  document.getElementById('btn-fermer-contact').addEventListener('click', ()=>fermerModal('modal-contact'));
 
   /* ── Indicateur poids page (US5) ─────────────── */
   window.addEventListener('load', ()=>{

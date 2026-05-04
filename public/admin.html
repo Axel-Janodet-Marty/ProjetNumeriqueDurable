@@ -67,6 +67,19 @@
     </table>
   </div>
   <div class="pagination" id="pag-annonces" style="margin-top:12px"></div>
+
+  <!-- Signalements -->
+  <h3 style="font-size:1rem;font-weight:600;color:var(--foret);margin:28px 0 12px">
+    🚩 Annonces signalées (<span id="total-signalements">…</span>)
+  </h3>
+  <div style="overflow-x:auto">
+    <table>
+      <thead><tr>
+        <th>ID</th><th>Titre</th><th>Auteur</th><th>Signalements</th><th>Raisons</th><th>Action</th>
+      </tr></thead>
+      <tbody id="tbody-signalements"></tbody>
+    </table>
+  </div>
 </div>
 
 <footer>
@@ -143,8 +156,30 @@
             `<button class="pag-btn" onclick="(${fn.name})(${page+1})" ${page>=pages?'disabled':''}>›</button>`;
   }
 
+  async function chargerSignalements(){
+    try{
+      const data = await fetch('/api/signalements').then(r=>r.json());
+      document.getElementById('total-signalements').textContent = data.length || 0;
+      const tbody = document.getElementById('tbody-signalements');
+      if(!data.length){
+        tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--text-hint)">Aucun signalement pour l\'instant</td></tr>';
+        return;
+      }
+      tbody.innerHTML = data.map(s=>`
+        <tr>
+          <td>${s.annonce_id}</td>
+          <td>${escapeHtml(s.titre)}</td>
+          <td>${escapeHtml(s.auteur||'')}</td>
+          <td><strong style="color:var(--erreur)">${s.nb_signalements}</strong></td>
+          <td style="font-size:.78rem;color:var(--text-soft);max-width:200px">${escapeHtml(s.raisons||'')}</td>
+          <td><button class="btn btn-danger btn-sm" onclick="supprimerAnnonce(${s.annonce_id})">Supprimer</button></td>
+        </tr>`).join('');
+    }catch{ document.getElementById('total-signalements').textContent='?'; }
+  }
+
   chargerUsers();
   chargerAnnonces();
+  chargerSignalements();
 </script>
 </body>
 </html>

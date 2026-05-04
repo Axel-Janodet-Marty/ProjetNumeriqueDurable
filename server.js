@@ -126,6 +126,25 @@ app.get('/api/stats', async (req, res) => {
   }
 });
 
+/* ── Signalements (admin) ────────────────────── */
+app.get('/api/signalements', requireAdmin, async (req, res) => {
+  try {
+    const rows = await db.prepare(
+      `SELECT s.annonce_id, a.titre, u.nom as auteur,
+              COUNT(s.id) as nb_signalements,
+              GROUP_CONCAT(s.raison, ' | ') as raisons
+       FROM signalements s
+       JOIN annonces a ON a.id=s.annonce_id
+       JOIN utilisateurs u ON u.id=a.auteur_id
+       GROUP BY s.annonce_id
+       ORDER BY nb_signalements DESC`
+    ).all();
+    return res.json(rows);
+  } catch (err) {
+    return res.status(500).json({ message: 'Erreur interne.' });
+  }
+});
+
 /* ── Routes séparées ─────────────────────────── */
 app.use('/api/auth',     require('./routes/auth')(db, rateLimit));
 app.use('/api/users',    require('./routes/users')(db, requireAuth, requireAdmin, PAGE_SIZE));
@@ -173,6 +192,16 @@ async function start() {
   try { await db.exec('ALTER TABLE annonces ADD COLUMN image_path TEXT DEFAULT NULL'); } catch (_) {}
   try { await db.exec('ALTER TABLE annonces ADD COLUMN image_data TEXT DEFAULT NULL'); } catch (_) {}
   try { await db.exec('ALTER TABLE annonces ADD COLUMN image_url  TEXT DEFAULT NULL'); } catch (_) {}
+
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS signalements (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      annonce_id INTEGER NOT NULL,
+      raison     TEXT    NOT NULL,
+      created_at TEXT    NOT NULL DEFAULT (strftime('%d/%m/%Y', 'now')),
+      FOREIGN KEY (annonce_id) REFERENCES annonces(id) ON DELETE CASCADE
+    )
+  `);
 
   const { n } = await db.prepare('SELECT COUNT(*) as n FROM utilisateurs').get();
   if (n === 0) {
