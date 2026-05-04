@@ -51,7 +51,8 @@ module.exports = function annoncesRouter(db, requireAuth, _UPLOAD_DIR, PAGE_SIZE
       const rows = await db.prepare(
         `SELECT a.id,a.titre,a.categorie,a.etat,a.description,a.statut,a.created_at,
                 a.image_url,(a.image_data IS NOT NULL) as has_image_data,
-                u.nom as auteur
+                u.nom as auteur,
+                (SELECT COUNT(*) FROM annonces a2 WHERE a2.auteur_id=a.auteur_id) as nb_dons_auteur
          FROM annonces a JOIN utilisateurs u ON u.id=a.auteur_id
            ${where} ORDER BY a.id DESC LIMIT ? OFFSET ?`
       ).all(...params, PAGE_SIZE, offset);

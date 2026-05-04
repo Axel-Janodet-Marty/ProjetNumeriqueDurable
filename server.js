@@ -117,9 +117,12 @@ app.get('/api/stats', async (req, res) => {
     const { n: annonces } = await db.prepare(`SELECT COUNT(*) as n FROM annonces WHERE statut='disponible'`).get();
     const { n: dons }     = await db.prepare(`SELECT COUNT(*) as n FROM annonces WHERE statut='donne'`).get();
     const { n: users }    = await db.prepare('SELECT COUNT(*) as n FROM utilisateurs').get();
-    return res.json({ annonces, dons, users });
+    const CO2_PAR_CAT = { 'Électronique':15,'Mobilier':8,'Vêtements':3,'Livres':1,'Cuisine':2,'Autre':2 };
+    const catRows = await db.prepare(`SELECT categorie, COUNT(*) as n FROM annonces WHERE statut='donne' GROUP BY categorie`).all();
+    const co2 = Math.round(catRows.reduce((s, r) => s + (CO2_PAR_CAT[r.categorie] || 2) * r.n, 0));
+    return res.json({ annonces, dons, users, co2 });
   } catch (err) {
-    return res.json({ annonces: 0, dons: 0, users: 0 });
+    return res.json({ annonces: 0, dons: 0, users: 0, co2: 0 });
   }
 });
 

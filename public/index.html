@@ -46,6 +46,10 @@
         <strong id="stat-dons" aria-label="Objets déjà donnés">…</strong>
         <span>objets déjà donnés</span>
       </div>
+      <div class="hero-stat">
+        <strong id="stat-co2" aria-label="CO₂ économisé">…</strong>
+        <span>kg CO₂ économisés</span>
+      </div>
     </div>
   </div>
 </section>
@@ -68,6 +72,7 @@
     <button class="filtre-btn" data-cat="Vêtements">👕 Vêtements</button>
     <button class="filtre-btn" data-cat="Cuisine">🍳 Cuisine</button>
     <button class="filtre-btn" data-cat="Autre">📦 Autre</button>
+    <button class="filtre-btn" data-cat="_favoris">♡ Favoris</button>
   </div>
 
   <div class="annonces-grid" id="annonces" aria-live="polite" aria-label="Liste des annonces">
@@ -127,8 +132,48 @@
 
   let pageCourante=1, categorieCourante='tous', rechercheCourante='';
 
+  const CO2_KG = {'Électronique':15,'Mobilier':8,'Vêtements':3,'Livres':1,'Cuisine':2,'Autre':2};
+  let annoncesCache = [];
+
+  function badgeDonneur(nb){
+    if(nb>=10) return {emoji:'♻',label:'Éco-expert',cls:'expert'};
+    if(nb>=5)  return {emoji:'🌿',label:'Éco-actif',cls:'actif'};
+    if(nb>=1)  return {emoji:'🌱',label:'Éco-débutant',cls:'debutant'};
+    return null;
+  }
+
+  function getFavoris(){ return JSON.parse(localStorage.getItem('ecotroc_favoris')||'[]'); }
+  function isFavori(id){ return getFavoris().some(f=>f.id===id); }
+
+  function toggleFavori(index){
+    const a=annoncesCache[index];
+    if(!a) return;
+    let favs=getFavoris();
+    const pos=favs.findIndex(f=>f.id===a.id);
+    if(pos>=0){
+      favs.splice(pos,1);
+      toast('Retiré des favoris','');
+      if(categorieCourante==='_favoris'){ chargerAnnonces(1,'_favoris',''); return; }
+    } else {
+      favs.push(a);
+      toast('Ajouté aux favoris ♥','succes');
+    }
+    localStorage.setItem('ecotroc_favoris',JSON.stringify(favs));
+    const btn=document.querySelector(`[data-fav-id="${a.id}"]`);
+    if(btn){
+      const estFav=favs.some(f=>f.id===a.id);
+      btn.textContent=estFav?'♥':'♡';
+      btn.classList.toggle('est-favori',estFav);
+    }
+  }
+
   /* ── Chargement des annonces ─────────────────── */
   async function chargerAnnonces(page, cat, q){
+    if(cat==='_favoris'){
+      afficherAnnonces(getFavoris());
+      afficherPagination(1,1);
+      return;
+    }
     const params = new URLSearchParams({page});
     if(cat && cat!=='tous') params.set('categorie', cat);
     if(q) params.set('q', q);
@@ -154,19 +199,29 @@
   }
 
   function afficherAnnonces(liste){
+    annoncesCache = liste;
     const c = document.getElementById('annonces');
     if(!liste || !liste.length){
-      c.innerHTML='<div class="vide"><div class="vide-icon">📭</div>Aucun objet trouvé. Soyez le premier à donner !</div>';
+      const emptyMsg = categorieCourante==='_favoris'
+        ? '<div class="vide-icon">♡</div>Aucun favori — cliquez sur ♡ sur une carte pour en ajouter.'
+        : '<div class="vide-icon">📭</div>Aucun objet trouvé. Soyez le premier à donner !';
+      c.innerHTML=`<div class="vide">${emptyMsg}</div>`;
       return;
     }
-    c.innerHTML = liste.map(a => {
-      const ec    = ETAT_CONFIG[a.etat] || ETAT_CONFIG['Usagé'];
-      const emoji = CAT_EMOJI[a.categorie] || '📦';
+    c.innerHTML = liste.map((a,i) => {
+      const ec      = ETAT_CONFIG[a.etat] || ETAT_CONFIG['Usagé'];
+      const emoji   = CAT_EMOJI[a.categorie] || '📦';
       const imgHtml = a.image_url
               ? `<div class="carte-img"><img src="${escapeHtml(a.image_url)}"
              alt="Photo de l'objet : ${escapeHtml(a.titre)}" loading="lazy"
              width="225" height="160"></div>`
               : `<div class="carte-img no-photo" aria-label="Pas de photo">${emoji}</div>`;
+      const co2     = CO2_KG[a.categorie] || 2;
+      const badge   = badgeDonneur(a.nb_dons_auteur||0);
+      const badgeHtml = badge
+        ? `<span class="badge-donneur" title="${badge.label}">${badge.emoji}</span>`
+        : '';
+      const estFav  = isFavori(a.id);
       return `
     <article class="carte">
       ${imgHtml}
@@ -177,14 +232,20 @@
         </div>
         <h3>${escapeHtml(a.titre)}</h3>
         <p class="carte-etat"><span class="dot ${ec.dot}" aria-hidden="true"></span>${escapeHtml(a.etat)}</p>
-        ${a.auteur?`<p class="carte-meta">Par ${escapeHtml(a.auteur)} · ${escapeHtml(a.created_at||'')}</p>`:''}
+        ${a.auteur?`<p class="carte-meta">Par ${escapeHtml(a.auteur)} ${badgeHtml} · ${escapeHtml(a.created_at||'')}</p>`:''}
+        <span class="carte-co2">🌱 −${co2} kg CO₂ économisés</span>
       </div>
       <div class="carte-footer">
         <button class="btn btn-primaire btn-sm" onclick="contacter(${a.id})"
                 aria-label="Contacter le donneur pour ${escapeHtml(a.titre)}">✉ Contacter</button>
-        <button class="btn btn-ghost btn-sm"
-                onclick="if(typeof partagerAnnonce!=='undefined')partagerAnnonce('${escapeHtml(a.titre).replace(/'/g,"\\'")}','${window.location.origin}/index.html')"
-                aria-label="Partager cette annonce">↗</button>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-ghost btn-sm btn-favori${estFav?' est-favori':''}"
+                  data-fav-id="${a.id}" onclick="toggleFavori(${i})"
+                  aria-label="${estFav?'Retirer des favoris':'Ajouter aux favoris'}">${estFav?'♥':'♡'}</button>
+          <button class="btn btn-ghost btn-sm"
+                  onclick="if(typeof partagerAnnonce!=='undefined')partagerAnnonce('${escapeHtml(a.titre).replace(/'/g,"\\'")}','${window.location.origin}/index.html')"
+                  aria-label="Partager cette annonce">↗</button>
+        </div>
       </div>
     </article>`;
     }).join('');
@@ -235,8 +296,10 @@
       const data = await fetch('/api/stats', {cache:'no-store'}).then(r=>r.json());
       const el1 = document.getElementById('stat-annonces');
       const el2 = document.getElementById('stat-dons');
+      const el3 = document.getElementById('stat-co2');
       if(el1) el1.textContent = data.annonces;
       if(el2) el2.textContent = data.dons;
+      if(el3) el3.textContent = data.co2 || 0;
     }catch(_){}
   }
 
