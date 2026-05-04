@@ -210,8 +210,7 @@ async function start() {
     console.log('✓ Admin créé : admin@efrei.net / Admin1234!efrei');
   }
 
-  await purger();
-  setInterval(() => purger().catch(console.error), 24 * 60 * 60_000);
+// Pas de purge automatique : on garde les annonces pour l’historique.
 
   app.listen(PORT, () => {
     console.log(`✓ EcoTroc → http://localhost:${PORT}`);
