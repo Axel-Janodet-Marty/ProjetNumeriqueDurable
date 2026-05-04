@@ -20,9 +20,9 @@ EcoTroc est une application web légère permettant aux étudiants de l'EFREI de
 |--------|------|
 | Axel Janodet-Marty | Développeur Full-stack / Chef de projet |
 | Gonçalves Karys | Développeur Back-end / Base de données |
-| Rayan Eid | Développeur Front-end / Design |
+| Rayan Eid | Développeur Front-end  |
 | Baptiste Fillie-Santin |  |
-| Simon Jennequin-Charles |  |
+| Simon Jennequin-Charles |  Designer & Concept|
 
 ---
 
