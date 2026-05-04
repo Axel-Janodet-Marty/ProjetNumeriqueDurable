@@ -160,6 +160,7 @@ async function start() {
 
   try { await db.exec('ALTER TABLE annonces ADD COLUMN image_path TEXT DEFAULT NULL'); } catch (_) {}
   try { await db.exec('ALTER TABLE annonces ADD COLUMN image_data TEXT DEFAULT NULL'); } catch (_) {}
+  try { await db.exec('ALTER TABLE annonces ADD COLUMN image_url  TEXT DEFAULT NULL'); } catch (_) {}
 
   const { n } = await db.prepare('SELECT COUNT(*) as n FROM utilisateurs').get();
   if (n === 0) {

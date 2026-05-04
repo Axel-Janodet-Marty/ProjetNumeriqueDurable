@@ -1,16 +1,40 @@
 'use strict';
-const express = require('express');
+const express    = require('express');
+const multer     = require('multer');
+const cloudinary = require('cloudinary').v2;
 
-module.exports = function annoncesRouter(db, requireAuth, UPLOAD_DIR, PAGE_SIZE) {
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key:    process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) cb(null, true);
+    else cb(new Error('Seules les images sont autorisées.'));
+  },
+});
+
+function uploadToCloudinary(buffer) {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { folder: 'ecotroc', resource_type: 'image' },
+      (err, result) => { if (err) reject(err); else resolve(result.secure_url); }
+    );
+    stream.end(buffer);
+  });
+}
+
+module.exports = function annoncesRouter(db, requireAuth, _UPLOAD_DIR, PAGE_SIZE) {
   const router = express.Router();
 
-  function validerImage(base64) {
-    if (!base64 || !base64.startsWith('data:image/')) return null;
-    const data = base64.split(',')[1];
-    if (!data) return null;
-    if (Buffer.byteLength(data, 'base64') > 256 * 1024)
-      throw new Error('Image trop lourde après compression (max 250 Ko).');
-    return base64; // stockée telle quelle en DB
+  function resolveImageUrl(a) {
+    if (a.image_url) return a.image_url;
+    if (a.has_image_data) return `/api/annonces/${a.id}/image`;
+    return null;
   }
 
   router.get('/', async (req, res) => {
@@ -26,15 +50,16 @@ module.exports = function annoncesRouter(db, requireAuth, UPLOAD_DIR, PAGE_SIZE)
       const { n: total } = await db.prepare(`SELECT COUNT(*) as n FROM annonces a ${where}`).get(...params);
       const rows = await db.prepare(
         `SELECT a.id,a.titre,a.categorie,a.etat,a.description,a.statut,a.created_at,
-                (a.image_data IS NOT NULL) as has_image,
+                a.image_url,(a.image_data IS NOT NULL) as has_image_data,
                 u.nom as auteur
          FROM annonces a JOIN utilisateurs u ON u.id=a.auteur_id
            ${where} ORDER BY a.id DESC LIMIT ? OFFSET ?`
       ).all(...params, PAGE_SIZE, offset);
-      return res.json({
-        annonces: rows,
-        total, page, pages: Math.ceil(total / PAGE_SIZE)
+      const annonces = rows.map(a => {
+        const url = resolveImageUrl(a);
+        return { ...a, image_url: url, has_image: !!url };
       });
+      return res.json({ annonces, total, page, pages: Math.ceil(total / PAGE_SIZE) });
     } catch (err) {
       return res.status(500).json({ message: 'Erreur interne.' });
     }
@@ -42,17 +67,22 @@ module.exports = function annoncesRouter(db, requireAuth, UPLOAD_DIR, PAGE_SIZE)
 
   router.get('/mes', requireAuth, async (req, res) => {
     try {
-      const annonces = await db.prepare(
-        `SELECT id,titre,categorie,etat,statut,(image_data IS NOT NULL) as has_image,created_at
+      const rows = await db.prepare(
+        `SELECT id,titre,categorie,etat,statut,image_url,
+                (image_data IS NOT NULL) as has_image_data,created_at
          FROM annonces WHERE auteur_id=? ORDER BY id DESC`
       ).all(req.session.userId);
+      const annonces = rows.map(a => {
+        const url = resolveImageUrl(a);
+        return { ...a, image_url: url, has_image: !!url };
+      });
       return res.json({ annonces });
     } catch (err) {
       return res.status(500).json({ message: 'Erreur interne.' });
     }
   });
 
-  /* Sert l'image brute depuis la DB */
+  /* Rétrocompatibilité : sert les anciennes images base64 depuis la DB */
   router.get('/:id/image', async (req, res) => {
     try {
       const row = await db.prepare('SELECT image_data FROM annonces WHERE id=?').get(parseInt(req.params.id));
@@ -83,47 +113,55 @@ module.exports = function annoncesRouter(db, requireAuth, UPLOAD_DIR, PAGE_SIZE)
     try {
       const a = await db.prepare(
         `SELECT a.id,a.titre,a.categorie,a.etat,a.description,a.statut,a.auteur_id,
-                (a.image_data IS NOT NULL) as has_image,a.created_at,u.nom as auteur
+                a.image_url,(a.image_data IS NOT NULL) as has_image_data,a.created_at,u.nom as auteur
          FROM annonces a JOIN utilisateurs u ON u.id=a.auteur_id WHERE a.id=?`
       ).get(parseInt(req.params.id));
       if (!a) return res.status(404).json({ message: 'Annonce introuvable.' });
+      a.image_url = resolveImageUrl(a);
+      a.has_image = !!(a.image_url);
       return res.json(a);
     } catch (err) {
       return res.status(500).json({ message: 'Erreur interne.' });
     }
   });
 
-  router.post('/', requireAuth, async (req, res) => {
-    const { titre, categorie, etat, description, image } = req.body;
+  router.post('/', requireAuth, upload.single('photo'), async (req, res) => {
+    const { titre, categorie, etat, description } = req.body;
     if (!titre || !categorie || !etat)
       return res.status(400).json({ message: 'Titre, catégorie et état sont requis.' });
     if (titre.length > 80)
       return res.status(400).json({ message: 'Titre trop long (80 car. max).' });
     try {
-      const imageData = image ? validerImage(image) : null;
+      let image_url = null;
+      if (req.file) {
+        image_url = await uploadToCloudinary(req.file.buffer);
+      }
       const r = await db.prepare(
-        `INSERT INTO annonces(titre,categorie,etat,description,image_data,auteur_id) VALUES(?,?,?,?,?,?)`
-      ).run(titre.trim(), categorie, etat, (description || '').slice(0, 300), imageData, req.session.userId);
+        `INSERT INTO annonces(titre,categorie,etat,description,image_url,auteur_id) VALUES(?,?,?,?,?,?)`
+      ).run(titre.trim(), categorie, etat, (description || '').slice(0, 300), image_url, req.session.userId);
       return res.status(201).json({ message: 'Annonce publiée.', id: r.lastInsertRowid });
     } catch (err) {
       return res.status(400).json({ message: err.message });
     }
   });
 
-  router.put('/:id', requireAuth, async (req, res) => {
+  router.put('/:id', requireAuth, upload.single('photo'), async (req, res) => {
     const id = parseInt(req.params.id);
     try {
-      const a = await db.prepare('SELECT id,auteur_id,image_data FROM annonces WHERE id=?').get(id);
+      const a = await db.prepare('SELECT id,auteur_id,image_url FROM annonces WHERE id=?').get(id);
       if (!a) return res.status(404).json({ message: 'Annonce introuvable.' });
       if (a.auteur_id !== req.session.userId && req.session.role !== 'admin')
         return res.status(403).json({ message: 'Accès refusé.' });
-      const { titre, categorie, etat, description, statut, image } = req.body;
+      const { titre, categorie, etat, description, statut } = req.body;
       if (!titre || !categorie || !etat)
         return res.status(400).json({ message: 'Titre, catégorie et état sont requis.' });
-      const imageData = image && image.startsWith('data:image/') ? validerImage(image) : a.image_data;
+      let image_url = a.image_url;
+      if (req.file) {
+        image_url = await uploadToCloudinary(req.file.buffer);
+      }
       await db.prepare(
-        `UPDATE annonces SET titre=?,categorie=?,etat=?,description=?,statut=?,image_data=? WHERE id=?`
-      ).run(titre.trim(), categorie, etat, (description || '').slice(0, 300), statut || 'disponible', imageData, id);
+        `UPDATE annonces SET titre=?,categorie=?,etat=?,description=?,statut=?,image_url=? WHERE id=?`
+      ).run(titre.trim(), categorie, etat, (description || '').slice(0, 300), statut || 'disponible', image_url, id);
       return res.json({ message: 'Annonce mise à jour.' });
     } catch (err) {
       return res.status(400).json({ message: err.message });
