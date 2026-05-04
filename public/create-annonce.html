@@ -93,13 +93,13 @@
 <footer>
   <div class="container footer-inner">
     <span>© 2025 EcoTroc Étudiant — EFREI Paris</span>
-    <span class="badge-green">🌱 Images compressées côté client — 0 Ko superflu envoyé</span>
+    <span class="badge-green">🌱 Images hébergées sur Cloudinary — stockage durable garanti</span>
   </div>
 </footer>
 
 <script src="/script.js" defer></script>
 <script>
-  let imageBase64 = null;
+  let photoFile = null;
 
   /* Vérifier connexion */
   fetch('/api/auth/me').then(r=>r.json()).then(d=>{
@@ -113,41 +113,36 @@
   zone.addEventListener('drop', e=>{
     e.preventDefault(); zone.classList.remove('drag-over');
     const file=e.dataTransfer.files[0];
-    if(file&&file.type.startsWith('image/')) traiterPhoto({files:[file]});
+    if(file&&file.type.startsWith('image/')) setPhoto(file);
   });
 
-  async function traiterPhoto(input){
+  function traiterPhoto(input){
     const file=input.files?.[0];
-    if(!file) return;
+    if(file) setPhoto(file);
+  }
+
+  function setPhoto(file){
     if(!file.type.startsWith('image/')){
       toast('Ce fichier n\'est pas une image.','erreur'); return;
     }
+    photoFile=file;
+    const prev=document.getElementById('photo-preview');
+    prev.src=URL.createObjectURL(file); prev.classList.add('visible');
+    document.getElementById('btn-retirer-photo').style.display='inline-flex';
+    zone.style.display='none';
     const info=document.getElementById('compression-info');
-    info.textContent='⏳ Compression en cours…';
+    const kb=Math.round(file.size/1024);
+    info.textContent=`📎 Photo sélectionnée : ${kb} Ko`;
     info.classList.add('visible');
-    try{
-      const res=await compresserImage(file);
-      imageBase64=res.base64;
-      /* Prévisualisation */
-      const prev=document.getElementById('photo-preview');
-      prev.src=res.base64; prev.classList.add('visible');
-      document.getElementById('btn-retirer-photo').style.display='inline-flex';
-      /* Masquer la zone de dépôt */
-      zone.style.display='none';
-      info.textContent=`✓ Compressé : ${res.kb} Ko (−${res.ratio}% par rapport à l'original)`;
-      toast(`Photo compressée à ${res.kb} Ko ✓`,'succes');
-    }catch(err){
-      info.textContent='Erreur lors de la compression.';
-      toast('Erreur compression image.','erreur');
-    }
+    toast(`Photo sélectionnée (${kb} Ko) ✓`,'succes');
   }
 
   function retirerPhoto(){
-    imageBase64=null;
-    document.getElementById('photo-preview').classList.remove('visible');
-    document.getElementById('photo-preview').src='';
+    photoFile=null;
+    const prev=document.getElementById('photo-preview');
+    prev.classList.remove('visible'); prev.src='';
     document.getElementById('btn-retirer-photo').style.display='none';
-    document.getElementById('upload-zone').style.display='';
+    zone.style.display='';
     document.getElementById('compression-info').classList.remove('visible');
     document.getElementById('photo-input').value='';
   }
@@ -170,10 +165,14 @@
     btn.textContent='Publication…'; btn.disabled=true;
 
     try{
-      const res=await fetch('/api/annonces',{
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({titre,categorie,etat,description,image:imageBase64})
-      });
+      const formData=new FormData();
+      formData.append('titre',titre);
+      formData.append('categorie',categorie);
+      formData.append('etat',etat);
+      formData.append('description',description);
+      if(photoFile) formData.append('photo',photoFile);
+
+      const res=await fetch('/api/annonces',{method:'POST',body:formData});
       const data=await res.json();
       if(!res.ok) throw new Error(data.message);
       toast('Annonce publiée avec succès !','succes');

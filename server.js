@@ -49,7 +49,16 @@ app.use((req, res, next) => {
 });
 
 /* ── Fichiers statiques ──────────────────────── */
-app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1h', etag: true }));
+app.use(express.static(path.join(__dirname, 'public'), {
+  maxAge: '1h',
+  etag: true,
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+    }
+  },
+}));
 
 /* ── Sessions ────────────────────────────────── */
 app.use(session({
@@ -108,9 +117,31 @@ app.get('/api/stats', async (req, res) => {
     const { n: annonces } = await db.prepare(`SELECT COUNT(*) as n FROM annonces WHERE statut='disponible'`).get();
     const { n: dons }     = await db.prepare(`SELECT COUNT(*) as n FROM annonces WHERE statut='donne'`).get();
     const { n: users }    = await db.prepare('SELECT COUNT(*) as n FROM utilisateurs').get();
-    return res.json({ annonces, dons, users });
+    const CO2_PAR_CAT = { 'Électronique':15,'Mobilier':8,'Vêtements':3,'Livres':1,'Cuisine':2,'Autre':2 };
+    const catRows = await db.prepare(`SELECT categorie, COUNT(*) as n FROM annonces WHERE statut='donne' GROUP BY categorie`).all();
+    const co2 = Math.round(catRows.reduce((s, r) => s + (CO2_PAR_CAT[r.categorie] || 2) * r.n, 0));
+    return res.json({ annonces, dons, users, co2 });
   } catch (err) {
-    return res.json({ annonces: 0, dons: 0, users: 0 });
+    return res.json({ annonces: 0, dons: 0, users: 0, co2: 0 });
+  }
+});
+
+/* ── Signalements (admin) ────────────────────── */
+app.get('/api/signalements', requireAdmin, async (req, res) => {
+  try {
+    const rows = await db.prepare(
+      `SELECT s.annonce_id, a.titre, u.nom as auteur,
+              COUNT(s.id) as nb_signalements,
+              GROUP_CONCAT(s.raison, ' | ') as raisons
+       FROM signalements s
+       JOIN annonces a ON a.id=s.annonce_id
+       JOIN utilisateurs u ON u.id=a.auteur_id
+       GROUP BY s.annonce_id
+       ORDER BY nb_signalements DESC`
+    ).all();
+    return res.json(rows);
+  } catch (err) {
+    return res.status(500).json({ message: 'Erreur interne.' });
   }
 });
 
@@ -160,6 +191,17 @@ async function start() {
 
   try { await db.exec('ALTER TABLE annonces ADD COLUMN image_path TEXT DEFAULT NULL'); } catch (_) {}
   try { await db.exec('ALTER TABLE annonces ADD COLUMN image_data TEXT DEFAULT NULL'); } catch (_) {}
+  try { await db.exec('ALTER TABLE annonces ADD COLUMN image_url  TEXT DEFAULT NULL'); } catch (_) {}
+
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS signalements (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      annonce_id INTEGER NOT NULL,
+      raison     TEXT    NOT NULL,
+      created_at TEXT    NOT NULL DEFAULT (strftime('%d/%m/%Y', 'now')),
+      FOREIGN KEY (annonce_id) REFERENCES annonces(id) ON DELETE CASCADE
+    )
+  `);
 
   const { n } = await db.prepare('SELECT COUNT(*) as n FROM utilisateurs').get();
   if (n === 0) {

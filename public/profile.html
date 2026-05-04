@@ -66,7 +66,7 @@
 
   <!-- Mes annonces -->
   <div class="mes-annonces">
-    <h2 class="section-titre">Mes annonces</h2>
+    <h2 class="section-titre">Mes annonces <span id="badge-profil" style="display:none"></span></h2>
     <div id="liste-annonces"><p class="vide">Chargement…</p></div>
   </div>
 
@@ -114,6 +114,13 @@
   let userId = null;
   let annonceCibleId = null;
 
+  function badgeDonneur(nb){
+    if(nb>=10) return {emoji:'♻',label:'Éco-expert',cls:'expert'};
+    if(nb>=5)  return {emoji:'🌿',label:'Éco-actif',cls:'actif'};
+    if(nb>=1)  return {emoji:'🌱',label:'Éco-débutant',cls:'debutant'};
+    return null;
+  }
+
   function fermerModal(id) { document.getElementById(id).classList.remove('visible'); }
   function ouvrirModal(id) { document.getElementById(id).classList.add('visible'); }
 
@@ -135,6 +142,14 @@
       const res  = await fetch('/api/annonces/mes');
       const data = await res.json();
       const c    = document.getElementById('liste-annonces');
+      const nb = data.annonces.length;
+      const badge = badgeDonneur(nb);
+      const el = document.getElementById('badge-profil');
+      if(el && badge){
+        el.textContent = badge.emoji + ' ' + badge.label;
+        el.className = 'badge-don-profil badge-don-' + badge.cls;
+        el.style.display = 'inline-block';
+      }
       if (!data.annonces.length) {
         c.innerHTML = '<p class="vide">Vous n\'avez pas encore d\'annonce.</p>'; return;
       }
