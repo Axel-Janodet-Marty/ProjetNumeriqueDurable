@@ -126,7 +126,7 @@ module.exports = function annoncesRouter(db, requireAuth, _UPLOAD_DIR, PAGE_SIZE
   });
 
   router.post('/', requireAuth, upload.single('photo'), async (req, res) => {
-    const { titre, categorie, etat, description } = req.body;
+    const { titre, categorie, etat, description, image } = req.body;
     if (!titre || !categorie || !etat)
       return res.status(400).json({ message: 'Titre, catégorie et état sont requis.' });
     if (titre.length > 80)
@@ -134,7 +134,12 @@ module.exports = function annoncesRouter(db, requireAuth, _UPLOAD_DIR, PAGE_SIZE
     try {
       let image_url = null;
       if (req.file) {
+        // Nouveau chemin : FormData → Cloudinary
         image_url = await uploadToCloudinary(req.file.buffer);
+      } else if (image && image.startsWith('data:image/')) {
+        // Chemin legacy : ancien frontend (base64 JSON) → Cloudinary
+        const b64 = image.split(',')[1];
+        if (b64) image_url = await uploadToCloudinary(Buffer.from(b64, 'base64'));
       }
       const r = await db.prepare(
         `INSERT INTO annonces(titre,categorie,etat,description,image_url,auteur_id) VALUES(?,?,?,?,?,?)`

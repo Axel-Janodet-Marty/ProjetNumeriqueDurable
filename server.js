@@ -49,7 +49,16 @@ app.use((req, res, next) => {
 });
 
 /* ── Fichiers statiques ──────────────────────── */
-app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1h', etag: true }));
+app.use(express.static(path.join(__dirname, 'public'), {
+  maxAge: '1h',
+  etag: true,
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+    }
+  },
+}));
 
 /* ── Sessions ────────────────────────────────── */
 app.use(session({
