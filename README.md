@@ -11,6 +11,8 @@
 EcoTroc est une application web légère permettant aux étudiants de l'EFREI de donner ou d'échanger des objets (livres, électronique, mobilier, vêtements…) sans intermédiaire. L'accent est mis sur la **sobriété numérique** : aucune dépendance front-end externe, poids de page < 200 Ko, < 15 requêtes HTTP par page.
 
 🌐 **URL déployée :** https://projetnumeriquedurable-1.onrender.com/index.html
+**Rapport du projet** : docs/Rapport_EcoTroc_TI616 grpGONCALVES JANODET--MARTY JENNEQUIN FILLIE-SANTIN EID
+**PPT de Présentation**: https://canva.link/qq8zbrvrbn7sxfc
 
 ---
 
